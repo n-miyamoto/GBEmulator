@@ -45,7 +45,9 @@ void Gameboy::stepCPU(void) {
 void Gameboy::showTitle() {
 	char str[ROM_TITLE_END - ROM_TITLE_START + 1];
 	str[ROM_TITLE_END - ROM_TITLE_START] = -1;
-	//std::memcpy(str, memory_map + ROM_TITLE_START, ROM_TITLE_END - ROM_TITLE_START + 1);
+	for (int a = ROM_TITLE_START; a < ROM_TITLE_END; a++) {
+		str[a - ROM_TITLE_START] = memory->read(a);
+	}
 	std::cout << str << std::endl;
 }
 
@@ -202,9 +204,9 @@ void CPU::step()
 		}
 	}
 
-	if (PC == 0x100 ) {
+	if (PC == 0x100 && memory->is_booting) {
 		std::cout << "finish boot seqence\n";
-
+		memory->is_booting = false;
 	}
 	//fetch
 	//dump_reg();
@@ -578,7 +580,6 @@ void CPU::step()
 		memory->write( LCDC_Y_CORDINATE , (memory->read(LCDC_Y_CORDINATE) + 1) % LCD_VERT_LINES);
 		lcd_count -= LCD_LINE_CYCLES;
 
-
 		if (memory->read(LCDC_Y_CORDINATE) == 144) {
 			ready_for_render = true;
 		}
@@ -602,31 +603,13 @@ void CPU::dump_reg() {
 				 std::hex << "RL " <<(int)RHL.b8[LO] << " " << std::endl;
 }
 
-
 GPU::GPU() {
-	frame_height = 144;
-	frame_width = 160;
-	frame_buffer = (uint8_t*)malloc(sizeof(uint8_t)*frame_width*frame_height);
-	total_frame= (uint8_t*)malloc(sizeof(uint8_t)*256*256);
-	memset(frame_buffer, 0, frame_height * frame_width);
-	if (frame_buffer == nullptr) {
-		std::cerr << "frame buffer malloc failed." << std::endl;
-	}
-	memset(total_frame, 0, 256 * 256);
-	if (frame_buffer == nullptr) {
-		std::cerr << "frame buffer malloc failed." << std::endl;
-	}
-}
-GPU::~GPU() {
-	free(frame_buffer);
+	frame_buffer= std::make_unique<uint8_t[]>(frame_height*frame_width );
+	total_frame = std::make_unique<uint8_t[]>(256 * 256);
 }
 
 void GPU::set_memmap(Memory* mem) {
 	memory = mem;
-}
-
-void GPU::rasterize_tile(uint8_t tile_x, uint8_t tile_y, uint8_t tilenum) {
-
 }
 
 void GPU::draw_frame() {
@@ -670,7 +653,7 @@ void GPU::draw_frame() {
 		}
 	}
 	else {
-		for (int i = 0; i < 256 * 256; i++) frame_buffer[i] = 0;//clear white
+		for (int i = 0; i < 256 * 256; i++) total_frame[i] = 0;//clear white
 	}
 	
 #if 0
@@ -747,7 +730,6 @@ void GPU::draw_frame() {
 Memory::Memory(uint8_t* cart, size_t rom_size, uint8_t* bootrom) {
 	std::memset(map, 0, MAX_ADDRESS);
 	std::memcpy(map, cart, rom_size);
-	std::memcpy(map, bootrom, 0x100);
 	std::memcpy(boot_rom, bootrom, 0x100);
 }
 
@@ -755,6 +737,9 @@ void Memory::write(uint16_t address, uint8_t data) {
 	map[address] = data;
 }
 uint8_t Memory::read(uint16_t address) {
+	if (is_booting && address<0x100 ) {
+		return boot_rom[address];
+	}
 	return map[address];
 }
 
