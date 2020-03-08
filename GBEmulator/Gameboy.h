@@ -51,6 +51,7 @@ private:
 	uint8_t map[MAX_ADDRESS];
 	uint8_t boot_rom[BOOTROM_SIZE];
 public:
+	uint8_t key = 0;
 	Memory(uint8_t* cart, size_t rom_size,  uint8_t* bootrom);
 	void write(uint16_t address, uint8_t data);
 	uint8_t read(uint16_t address);

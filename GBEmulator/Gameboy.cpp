@@ -60,10 +60,12 @@ void Gameboy::showCartInfo() {
 void Gameboy::press(KEYS key) {
 	std::cout << "key pressed" << std::endl;
 	key_pressed[static_cast<int>(key)] = true;
+	memory->key |= 1 << static_cast<int>(key);
 }
 void Gameboy::release(KEYS key){
 	std::cout << "key released" << std::endl;
 	key_pressed[static_cast<int>(key)] = false;
+	memory->key ^= 1 << static_cast<int>(key);
 }
 
 void CPU::shift_operation_CB() {
@@ -216,8 +218,10 @@ void CPU::step()
 		std::cout << "finish boot seqence\n";
 		memory->is_booting = false;
 	}
+
+	if(!memory->is_booting)
+		//dump_reg();
 	//fetch
-	//dump_reg();
 	uint16_t tmp = PC;
 	uint8_t op = memory->read(PC++);
 	uint16_t NN;
@@ -786,8 +790,9 @@ Memory::Memory(uint8_t* cart, size_t rom_size, uint8_t* bootrom) {
 }
 
 void Memory::write(uint16_t address, uint8_t data) {
-	if (address == 0xFF46 || (address <= 0xFF55 && address >= 0xFF51)) {
-		std::cout << "DMA occured " << std::hex << (int)address << std::endl;
+	if (address == 0xFF00) {
+		if (data | 0x20) data |= 0x20 + (key & 0x0F);
+		else if (data | 0x10) data |= 0x10 + (key>>4);
 	}
 	map[address] = data;
 }
