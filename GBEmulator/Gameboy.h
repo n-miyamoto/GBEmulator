@@ -9,7 +9,9 @@
 #define LCDC_Y_CORDINATE    (0xFF44)
 #define LCD_SCROLL_Y        (0xFF42)
 #define LCD_SCROLL_X        (0xFF43)
+#define MAX_ADDRESS			(0x10000)
 
+#define BOOTROM_SIZE		(0x100)
 
 #define LCD_VERT_LINES		(154)
 #define LCD_LINE_CYCLES     (456)
@@ -31,10 +33,23 @@ enum class INTERRUPTS{
 	TIMER
 };
 
+class Memory
+{
+private:
+	uint8_t map[MAX_ADDRESS];
+	uint8_t boot_rom[BOOTROM_SIZE];
+public:
+	Memory(uint8_t* cart, size_t rom_size,  uint8_t* bootrom);
+	void write(uint16_t address, uint8_t data);
+	uint8_t read(uint16_t address);
+	bool is_booting = true;
+};
+
 class CPU
 {
 private:
 	void shift_operation_CB();
+	Memory* memory;
 	//general registors
 	uint8_t RA = 0;
 	reg RBC = { 0 };
@@ -56,7 +71,7 @@ private:
 	uint32_t lcd_count = 0;
 public:
 	CPU();
-	void set_memmap(uint8_t* memmap);
+	void set_memmap(uint8_t* memmap, Memory* mem);
 	void step();
 	void set_interrupt_flag(INTERRUPTS intrpt);
 	void dump_reg(void);
@@ -65,6 +80,7 @@ public:
 
 class GPU {
 private:
+	Memory* memory;
 	uint8_t* memory_map = nullptr;
 	uint8_t frame_width = FRAME_WIDTH;
 	uint8_t frame_height = FRAME_HEIGHT;
@@ -73,7 +89,7 @@ private:
 public:
 	GPU();
 	~GPU();
-	void set_memmap(uint8_t* memmap);
+	void set_memmap(uint8_t* memmap, Memory* memory);
 	uint8_t* frame_buffer = nullptr;
 	void draw_frame();
 };
@@ -81,6 +97,7 @@ public:
 class Gameboy
 {
 private:
+	std::unique_ptr<Memory> memory;
 	uint8_t* memory_map = nullptr;
 	uint8_t* rom_ptr = nullptr;
 	size_t  rom_size = 0; 

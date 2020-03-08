@@ -22,7 +22,7 @@ uint8_t OP_CYCLES[0x100] = {
 };
 
 
-Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) {
+Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) :memory(new Memory(rom,size,boot_rom)){
 	isRendered = false;
 	rom_ptr = rom;
 	rom_size = size;
@@ -36,8 +36,8 @@ Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) {
 	std::memset(memory_map, 0, 0x10000);
 	std::memcpy(memory_map, rom, size);
 	std::memcpy(memory_map, boot_rom, 0x100);
-	cpu.set_memmap(memory_map);
-	gpu.set_memmap(memory_map);
+	cpu.set_memmap(memory_map, memory.get());
+	gpu.set_memmap(memory_map, memory.get());
 }
 
 Gameboy::~Gameboy() {
@@ -62,7 +62,7 @@ void Gameboy::showCartInfo() {
 }
 
 void CPU::shift_operation_CB() {
-	uint8_t op = memory_map[PC++];
+	uint8_t op = memory->read(PC++);
 	uint8_t R  = (op & 0x7);
 	uint8_t B  = (op >> 3) & 0x7;
 	uint8_t D  = (op >> 3) & 0x1;
@@ -77,7 +77,7 @@ void CPU::shift_operation_CB() {
 		case 3: val = RDE.b8[LO]; break;
 		case 4: val = RHL.b8[HI]; break;
 		case 5: val = RHL.b8[LO]; break;
-		case 6: val = memory_map[RHL.b16]; break;
+		case 6: val = memory->read(RHL.b16); break;
 		case 7: val = RA; break;
 	}
 
@@ -178,17 +178,18 @@ void CPU::shift_operation_CB() {
 			case 3: RDE.b8[LO] = val; break;
 			case 4: RHL.b8[HI] = val; break;
 			case 5: RHL.b8[LO] = val; break;
-			case 6: memory_map[RHL.b16]= val; break;
+			case 6: memory->write(RHL.b16, val); break;
 			case 7: RA = val; break;
 		}
 	}
 }
 
-CPU::CPU() {
+CPU::CPU(){
 }
 
-void CPU::set_memmap(uint8_t* memmap) {
+void CPU::set_memmap(uint8_t* memmap, Memory *mem) {
 	memory_map = memmap;
+	memory = mem;
 }
 
 void CPU::step() 
@@ -200,27 +201,22 @@ void CPU::step()
 	if (IME && (IF > 0)) {
 		IME = 0;
 		std::cout << "interrupt ocured \n";
-		memory_map[--SP] = PC >> 8;
-		memory_map[--SP] = PC & 0xFF;
+		memory->write(--SP, PC >> 8);
+		memory->write(--SP, PC & 0xFF);
 		if (IF & 1<<static_cast<uint8_t>(INTERRUPTS::V_BLANK)) {
 			PC = VBLANK_INTR_ADDR;
 			IF ^= 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK);
 		}
 	}
 
-	if (PC == 0x100) {
+	if (PC == 0x100 ) {
 		std::cout << "finish boot seqence\n";
-		uint8_t *ptr1 = &memory_map[0x8000];
-		uint8_t *ptr2 = &memory_map[0x8800];
-		uint8_t *ptr3 = &memory_map[0x9000];
-		uint8_t *ptr4 = &memory_map[0x9800];
-		uint8_t *ptr5 = &memory_map[0xFE00];
 
 	}
 	//fetch
 	//dump_reg();
 	uint16_t tmp = PC;
-	uint8_t op = memory_map[PC++];
+	uint8_t op = memory->read(PC++);
 	uint16_t NN;
 	uint8_t N;
 	int8_t SN;
@@ -230,11 +226,11 @@ void CPU::step()
 	case 0x00: //nop
 		break;
 	case 0x01:
-		RBC.b8[LO] = memory_map[PC++];
-		RBC.b8[HI] = memory_map[PC++];
+		RBC.b8[LO] = memory->read(PC++);
+		RBC.b8[HI] = memory->read(PC++);
 		break;
 	case 0x02:
-		memory_map[RBC.b16] = RA;
+		memory->write(RBC.b16, RA);
 		break;
 	case 0x04:
 		RBC.b8[HI]++;
@@ -249,7 +245,7 @@ void CPU::step()
 		FH = ((RBC.b8[HI] & 0x0F) == 0);
 		break;
 	case 0x06:
-		RBC.b8[HI] = memory_map[PC++]; //B
+		RBC.b8[HI] = memory->read(PC++); //B
 		break;
 	case 0x0C:
 		RBC.b8[LO]++;
@@ -264,11 +260,11 @@ void CPU::step()
 		FH = ((RBC.b8[LO] & 0x0F) == 0x0F);
 		break;
 	case 0x0E:
-		RBC.b8[LO] = memory_map[PC++];
+		RBC.b8[LO] = memory->read(PC++); //B
 		break;
 	case 0x11:
-		RDE.b8[LO] = memory_map[PC++];
-		RDE.b8[HI] = memory_map[PC++];
+		RDE.b8[LO] = memory->read(PC++); //B
+		RDE.b8[HI] = memory->read(PC++); //B
 		break;
 	case 0x13:
 		NN = RDE.b16 + 1;
@@ -282,7 +278,7 @@ void CPU::step()
 		FH = ((RDE.b8[HI] & 0x0F) == 0x0F);
 		break;
 	case 0x16:
-		RDE.b8[HI] = memory_map[PC++];
+		RDE.b8[HI] = memory->read(PC++);
 		break;
 	case 0x17:
 		N = RA;
@@ -293,11 +289,11 @@ void CPU::step()
 		FC = (N >> 7) & 0x01;
 		break;
 	case 0x18:
-		SN = (int8_t)memory_map[PC++];
+		SN = (int8_t)memory->read(PC++);
 		PC += SN;
 		break;
 	case 0x1A:
-		RA = memory_map[RDE.b16];
+		RA = memory->read(RDE.b16);
 		break;
 	case 0x1D:
 		RDE.b8[LO]--;
@@ -306,18 +302,18 @@ void CPU::step()
 		FH = ((RDE.b8[LO] & 0x0F) == 0x0F);
 		break;
 	case 0x1E:
-		RDE.b8[LO] = memory_map[PC++];
+		RDE.b8[LO] = memory->read(PC++);
 		break;
 	case 0x20:
-		SN = (int8_t)memory_map[PC++];
+		SN = (int8_t)memory->read(PC++);
 		if (!FZ) PC += SN;
 		break;
 	case 0x21:
-		RHL.b8[LO] = memory_map[PC++];
-		RHL.b8[HI] = memory_map[PC++];
+		RHL.b8[LO] = memory->read(PC++);
+		RHL.b8[HI] = memory->read(PC++);
 		break;
 	case 0x22:
-		memory_map[RHL.b16] = RA;
+		memory->write(RHL.b16 ,RA);
 		NN = RHL.b16 + 1;
 		RHL.b8[HI] = NN >> 8;
 		RHL.b8[LO] = NN & 0xFF;
@@ -358,18 +354,18 @@ void CPU::step()
 		}
 		break;
 	case 0x28:
-		SN = (int8_t)memory_map[PC++];
+		SN = (int8_t)memory->read(PC++);
 		if (FZ) PC += SN;
 		break;
 	case 0x2E:
 		RHL.b8[LO] = memory_map[PC++];
 		break;
 	case 0x31:
-		SP = memory_map[PC++];
-		SP |= memory_map[PC++] << 8;
+		SP = memory->read(PC++);
+		SP |= memory->read(PC++) << 8;
 		break;
 	case 0x32:
-		memory_map[RHL.b16] = RA;
+		memory->write(RHL.b16,  RA);
 		NN = RHL.b16 - 1;
 		RHL.b8[HI] = NN >> 8;
 		RHL.b8[LO] = NN & 0xFF;
@@ -387,7 +383,7 @@ void CPU::step()
 		FH = ((RA & 0x0F) == 0x0F);
 		break;
 	case 0x3E:
-		RA = memory_map[PC++];
+		RA = memory->read(PC++);
 		break;
 	case 0x3F:
 		FN = 0;
@@ -410,13 +406,13 @@ void CPU::step()
 		RDE.b8[LO] = RDE.b8[HI];
 		break;
 	case 0x66:
-		RHL.b8[HI] = memory_map[RHL.b16];
+		RHL.b8[HI] = memory->read(RHL.b16);
 		break;
 	case 0x67:
 		RHL.b8[HI] = RA;
 		break;
 	case 0x77:
-		memory_map[RHL.b16] = RA;
+		memory->write(RHL.b16,  RA);
 		break;
 	case 0x78:
 		RA = RBC.b8[HI];
@@ -431,10 +427,10 @@ void CPU::step()
 		RA = RHL.b8[LO];
 		break;
 	case 0x7E:
-		RA = memory_map[RHL.b16];
+		RA = memory->read(RHL.b16);
 		break;
 	case 0x86:
-		N = memory_map[RHL.b16];
+		N = memory->read(RHL.b16);
 		NN = RA + N;
 		FZ = ((NN & 0xFF) == 0x00);
 		FN = 0;
@@ -468,7 +464,7 @@ void CPU::step()
 		FC = 0;
 		break;
 	case 0xBE:
-		N = memory_map[RHL.b16];
+		N = memory->read(RHL.b16);
 		NN = RA - N;
 		FZ = ((NN & 0xFF) == 0x00);
 		FN = 1;
@@ -478,49 +474,49 @@ void CPU::step()
 	case 0xC0:
 		if (!FZ)
 		{
-			NN = memory_map[SP++];
-			NN |= memory_map[SP++] << 8;
+			NN = memory->read(SP++);
+			NN |= memory->read(SP++) << 8;
 			PC = NN;
 		}
 		break;
 	case 0xC1:
-		RBC.b8[LO] = memory_map[SP++];
-		RBC.b8[HI] = memory_map[SP++];
+		RBC.b8[LO] = memory->read(SP++);
+		RBC.b8[HI] = memory->read(SP++);
 		break;
 	case 0xC3:
-		NN = memory_map[PC++];
-		NN |= memory_map[PC++] << 8;
+		NN = memory->read(PC++);
+		NN |= memory->read(PC++) << 8;
 		PC = NN;
 		break;
 	case 0xC5:
-		memory_map[--SP] = RBC.b8[HI];
-		memory_map[--SP] = RBC.b8[LO];
+		memory->write(--SP,RBC.b8[HI]);
+		memory->write(--SP,RBC.b8[LO]);
 		break;
 	case 0xC8:
 		if (FZ)
 		{
-			NN = memory_map[SP++];
-			NN |= memory_map[SP++] << 8;
+			NN = memory->read(SP++);
+			NN |= memory->read(SP++) << 8;
 			PC = NN;
 		}
 		break;
 	case 0xC9:
-		NN = memory_map[SP++];
-		NN |= memory_map[SP++] << 8;
+		NN = memory->read(SP++);
+		NN |= memory->read(SP++) << 8;
 		PC = NN;
 		break;
 	case 0xCB:
 		shift_operation_CB();
 		break;
 	case 0xCD:
-		NN = memory_map[PC++];
-		NN |= memory_map[PC++] << 8;
-		memory_map[--SP] = PC >> 8;
-		memory_map[--SP] = PC & 0xFF;
+		NN = memory->read(PC++);
+		NN |= memory->read(PC++) << 8;
+		memory->write(--SP , PC >> 8);
+		memory->write(--SP , PC & 0xFF);
 		PC = NN;
 		break;
 	case 0xCE:
-		N = memory_map[PC++];
+		N = memory->read(PC++);
 		NN = RA + N + FC;
 		FZ = ((NN & 0xFF) == 0x00);
 		FN = 0;
@@ -529,47 +525,47 @@ void CPU::step()
 		RA = NN & 0xFF;
 		break;
 	case 0xD5:
-		memory_map[--SP] = RDE.b8[HI];
-		memory_map[--SP] = RDE.b8[LO];
+		memory->write(--SP,RDE.b8[HI]);
+		memory->write(--SP,RDE.b8[LO]);
 		break;
 	case 0xE0:
-		memory_map[(0xFF00 | memory_map[PC++])] = RA;
+		memory->write((0xFF00 | memory_map[PC++]),  RA);
 		break;
 	case 0xEA:
-		memory_map[memory_map[PC++]|memory_map[PC++]<<8] = RA;
+		memory->write(memory_map[PC++]|memory_map[PC++]<<8,  RA);
 		break;
 	case 0xF0:
-		RA = memory_map[(0xFF00 | memory_map[PC++])];
+		RA = memory->read((0xFF00 | memory->read(PC++)));
 		break;
 	case 0xF3:
 		IME = 0;
 		break;
 	case 0xE2:
-		memory_map[0xFF | RBC.b8[LO]] = RA;
+		memory->write(0xFF | RBC.b8[LO], RA);
 		break;
 	case 0xE5:
-		memory_map[--SP] = RHL.b8[HI];
-		memory_map[--SP] = RHL.b8[LO];
+		memory->write(--SP,RHL.b8[HI]);
+		memory->write(--SP,RHL.b8[LO]);
 		break;
 	case 0xE6:
-		RA = RA & memory_map[PC++];
+		RA = RA & memory->read(PC++);
 		FZ = (RA == 0x00);
 		FN = 0;
 		FH = 1;
 		FC = 0;
 		break;
 	case 0xF5:
-		memory_map[--SP] = RA;
-		memory_map[--SP] = FZ<<7|FN<<6|FH<<5|FC<<4;
+		memory->write(--SP , RA);
+		memory->write(--SP , FZ<<7|FN<<6|FH<<5|FC<<4);
 		break;
 	case 0xF9:
 		SP = RHL.b16;
 		break;
 	case 0xFA:
-		RA = memory_map[memory_map[PC++] | memory_map[PC++] << 8];
+		RA = memory->read( memory->read(PC++) | memory->read(PC++) << 8);
 		break;
 	case 0xFE:
-		N = memory_map[PC++];
+		N = memory->read(PC++);
 		NN = RA - N;
 		FZ = ((NN & 0xFF) == 0);
 		FN = 1;
@@ -586,13 +582,12 @@ void CPU::step()
 	cycle_count += OP_CYCLES[op];
 	lcd_count += OP_CYCLES[op];
 	if (lcd_count > LCD_LINE_CYCLES) {
-		memory_map[LCDC_Y_CORDINATE] = (memory_map[LCDC_Y_CORDINATE] + 1) % LCD_VERT_LINES;
+		memory->write( LCDC_Y_CORDINATE , (memory->read(LCDC_Y_CORDINATE) + 1) % LCD_VERT_LINES);
 		lcd_count -= LCD_LINE_CYCLES;
 
 
-		if (memory_map[LCDC_Y_CORDINATE] == 144) {
+		if (memory->read(LCDC_Y_CORDINATE) == 144) {
 			ready_for_render = true;
-			//std::cout << "vertical " << std::endl;
 		}
 	}
 
@@ -602,7 +597,7 @@ void CPU::set_interrupt_flag(INTERRUPTS intrpt) {
 }
 
 void CPU::dump_reg() {
-	int op = memory_map[PC];
+	int op = memory->read(PC);
 	std::cout << std::hex << "PC " << (int)PC << " " << 
 		         std::hex << "OP " <<(int)op << " " << 
 				 std::hex << "RA " <<(int)RA << " " <<
@@ -633,8 +628,9 @@ GPU::~GPU() {
 	free(frame_buffer);
 }
 
-void GPU::set_memmap(uint8_t* memmap) {
+void GPU::set_memmap(uint8_t* memmap, Memory* mem) {
 	memory_map = memmap;
+	memory = mem;
 }
 
 void GPU::rasterize_tile(uint8_t tile_x, uint8_t tile_y, uint8_t tilenum) {
@@ -642,16 +638,16 @@ void GPU::rasterize_tile(uint8_t tile_x, uint8_t tile_y, uint8_t tilenum) {
 }
 
 void GPU::draw_frame() {
-	auto display_enable = (memory_map[LCDC] >> 7) & 0x01;
+	auto display_enable = (memory->read(LCDC) >> 7) & 0x01;
 	if (!display_enable) return;
 
-	auto window_tilemap_select = (memory_map[LCDC] >> 6) & 0x01;
-	auto window_display = (memory_map[LCDC] >> 5) & 0x01;
-	auto tiledata_select= (memory_map[LCDC] >> 4) & 0x01;
-	auto bg_tilemap_select = (memory_map[LCDC] >> 3) & 0x01;
-	auto obj_size = (memory_map[LCDC] >> 2) & 0x01;
-	auto obj_display_enable = (memory_map[LCDC] >> 1) & 0x01;
-	auto bg_display = (memory_map[LCDC] >> 0) & 0x01;
+	auto window_tilemap_select = (memory->read(LCDC) >> 6) & 0x01;
+	auto window_display = (memory->read(LCDC) >> 5) & 0x01;
+	auto tiledata_select= (memory->read(LCDC) >> 4) & 0x01;
+	auto bg_tilemap_select = (memory->read(LCDC) >> 3) & 0x01;
+	auto obj_size = (memory->read(LCDC) >> 2) & 0x01;
+	auto obj_display_enable = (memory->read(LCDC) >> 1) & 0x01;
+	auto bg_display = (memory->read(LCDC) >> 0) & 0x01;
 
 	//draw background
 	if (bg_display) {
@@ -659,7 +655,7 @@ void GPU::draw_frame() {
 		auto tile_top_addr = 0x9000 - 0x1000 * tiledata_select;
 		for (int i = 0; i < 32; i++) {
 			for (int j = 0; j < 32; j++) {
-				auto tilenum = memory_map[bg_top_addr + i * 32 + j];
+				auto tilenum = memory->read(bg_top_addr + i * 32 + j);
 				if (tilenum != 0) {
 					int kads = 0;
 				}
@@ -668,8 +664,8 @@ void GPU::draw_frame() {
 				else tile_id = tilenum;
 				auto tile_addr = tile_top_addr + 16 * tile_id;
 				for (int k = 0; k < 8; k++) { //1 tile has 16 byte 8px * 8line 
-					uint8_t b1 = memory_map[tile_addr++];
-					uint8_t b2 = memory_map[tile_addr++];
+					uint8_t b1 = memory->read(tile_addr++);
+					uint8_t b2 = memory->read(tile_addr++);
 					for (int l = 0; l < 8; l++) {
 						auto px = ((b2 >> (7 - l)) & 0x01);
 						px += ((b1 >> (7 - l)) & 0x01)<<1;
@@ -740,20 +736,33 @@ void GPU::draw_frame() {
 		}
 	}	
 #endif	
-	//draw framebuffer
-	auto scroll_y = memory_map[LCD_SCROLL_Y];
-	auto scroll_x = memory_map[LCD_SCROLL_X];
+	auto scroll_y = memory->read(LCD_SCROLL_Y);
+	auto scroll_x = memory->read(LCD_SCROLL_X);
 
 	for (int y = 0; y < frame_height; y++) {
 		for (int x = 0; x < frame_width; x++) {
 			if (scroll_x + x < frame_width && scroll_y + y < frame_height) {
 				frame_buffer[y * frame_width + x] = total_frame[(scroll_y + y) * 256 + (scroll_x + x)];
-				//if (total_frame[(scroll_y + y) * 256 + (scroll_x + x)] != 0) std::cout << " ";
 			}
 			else {
 					frame_buffer[y * frame_width + x] = 0;
 			}
 		}
 	}
+}
+
+	
+Memory::Memory(uint8_t* cart, size_t rom_size, uint8_t* bootrom) {
+	std::memset(map, 0, MAX_ADDRESS);
+	std::memcpy(map, cart, rom_size);
+	std::memcpy(map, bootrom, 0x100);
+	std::memcpy(boot_rom, bootrom, 0x100);
+}
+
+void Memory::write(uint16_t address, uint8_t data) {
+	map[address] = data;
+}
+uint8_t Memory::read(uint16_t address) {
+	return map[address];
 }
 
