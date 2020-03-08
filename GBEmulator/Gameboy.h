@@ -57,7 +57,7 @@ private:
 	reg RHL = { 0 };
 	uint16_t SP = { 0 };
 	uint16_t PC = { 0 };
-	uint8_t* memory_map = nullptr;
+	//uint8_t* memory_map = nullptr;
 	//flags
 	uint8_t FZ = { 0 };
 	uint8_t FH = { 0 };
@@ -71,7 +71,7 @@ private:
 	uint32_t lcd_count = 0;
 public:
 	CPU();
-	void set_memmap(uint8_t* memmap, Memory* mem);
+	void set_memmap(Memory* mem);
 	void step();
 	void set_interrupt_flag(INTERRUPTS intrpt);
 	void dump_reg(void);
@@ -81,7 +81,7 @@ public:
 class GPU {
 private:
 	Memory* memory;
-	uint8_t* memory_map = nullptr;
+	//uint8_t* memory_map = nullptr;
 	uint8_t frame_width = FRAME_WIDTH;
 	uint8_t frame_height = FRAME_HEIGHT;
 	uint8_t* total_frame = nullptr;
@@ -89,7 +89,7 @@ private:
 public:
 	GPU();
 	~GPU();
-	void set_memmap(uint8_t* memmap, Memory* memory);
+	void set_memmap(Memory* memory);
 	uint8_t* frame_buffer = nullptr;
 	void draw_frame();
 };

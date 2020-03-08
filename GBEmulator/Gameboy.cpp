@@ -29,15 +29,9 @@ Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) :memory(new Memor
 	uint32_t ram_sizes[] = { 0x00, 0x800, 0x2000, 0x8000, 0x20000 };
 	save_size = ram_sizes[rom[ROM_RAM_SIZE]];
 	save_ptr = (uint8_t*)malloc(save_size);
-	memory_map = (uint8_t*)malloc(sizeof(uint8_t) * 0x10000);
-	if (memory_map == nullptr) {
-		std::cerr << "GB Initialize failed." << std::endl;
-	}
-	std::memset(memory_map, 0, 0x10000);
-	std::memcpy(memory_map, rom, size);
-	std::memcpy(memory_map, boot_rom, 0x100);
-	cpu.set_memmap(memory_map, memory.get());
-	gpu.set_memmap(memory_map, memory.get());
+
+	cpu.set_memmap(memory.get());
+	gpu.set_memmap(memory.get());
 }
 
 Gameboy::~Gameboy() {
@@ -51,7 +45,7 @@ void Gameboy::stepCPU(void) {
 void Gameboy::showTitle() {
 	char str[ROM_TITLE_END - ROM_TITLE_START + 1];
 	str[ROM_TITLE_END - ROM_TITLE_START] = -1;
-	std::memcpy(str, memory_map + ROM_TITLE_START, ROM_TITLE_END - ROM_TITLE_START + 1);
+	//std::memcpy(str, memory_map + ROM_TITLE_START, ROM_TITLE_END - ROM_TITLE_START + 1);
 	std::cout << str << std::endl;
 }
 
@@ -187,8 +181,7 @@ void CPU::shift_operation_CB() {
 CPU::CPU(){
 }
 
-void CPU::set_memmap(uint8_t* memmap, Memory *mem) {
-	memory_map = memmap;
+void CPU::set_memmap(Memory *mem) {
 	memory = mem;
 }
 
@@ -358,7 +351,7 @@ void CPU::step()
 		if (FZ) PC += SN;
 		break;
 	case 0x2E:
-		RHL.b8[LO] = memory_map[PC++];
+		RHL.b8[LO] = memory->read(PC++);
 		break;
 	case 0x31:
 		SP = memory->read(PC++);
@@ -529,10 +522,10 @@ void CPU::step()
 		memory->write(--SP,RDE.b8[LO]);
 		break;
 	case 0xE0:
-		memory->write((0xFF00 | memory_map[PC++]),  RA);
+		memory->write((0xFF00 | memory->read(PC++)),  RA);
 		break;
 	case 0xEA:
-		memory->write(memory_map[PC++]|memory_map[PC++]<<8,  RA);
+		memory->write(memory->read(PC++) |memory->read(PC++)<<8,  RA);
 		break;
 	case 0xF0:
 		RA = memory->read((0xFF00 | memory->read(PC++)));
@@ -628,8 +621,7 @@ GPU::~GPU() {
 	free(frame_buffer);
 }
 
-void GPU::set_memmap(uint8_t* memmap, Memory* mem) {
-	memory_map = memmap;
+void GPU::set_memmap(Memory* mem) {
 	memory = mem;
 }
 
