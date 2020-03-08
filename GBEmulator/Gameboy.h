@@ -33,6 +33,18 @@ enum class INTERRUPTS{
 	TIMER
 };
 
+enum class KEYS {
+	BUTTON_A,
+	BUTTON_B,
+	BUTTON_SELECT,
+	BUTTON_START,
+	DIRECTION_R,
+	DIRECTION_L,
+	DIRECTION_U,
+	DIRECTION_D,
+	KEY_NUMS
+};
+
 class Memory
 {
 private:
@@ -75,6 +87,7 @@ public:
 	void set_interrupt_flag(INTERRUPTS intrpt);
 	void dump_reg(void);
 	bool ready_for_render = false;
+	
 };
 
 class GPU {
@@ -99,6 +112,7 @@ private:
 	size_t  rom_size = 0; 
 	uint8_t* save_ptr = nullptr;
 	size_t save_size = 0;
+	bool key_pressed[static_cast<int>(KEYS::KEY_NUMS)] = {0};
 
 public:
 	CPU cpu;
@@ -109,5 +123,7 @@ public:
 	void showCartInfo();
 	void stepCPU();
 	bool isRendered;
+	void press(KEYS key);
+	void release(KEYS key);
 };
 

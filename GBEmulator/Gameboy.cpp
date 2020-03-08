@@ -57,6 +57,15 @@ void Gameboy::showCartInfo() {
 	std::cout << "ROM SIZE: " << rom_size << std::endl;
 }
 
+void Gameboy::press(KEYS key) {
+	std::cout << "key pressed" << std::endl;
+	key_pressed[static_cast<int>(key)] = true;
+}
+void Gameboy::release(KEYS key){
+	std::cout << "key released" << std::endl;
+	key_pressed[static_cast<int>(key)] = false;
+}
+
 void CPU::shift_operation_CB() {
 	uint8_t op = memory->read(PC++);
 	uint8_t R  = (op & 0x7);
@@ -194,7 +203,7 @@ void CPU::step()
 	//check interrupt
 	if (IME && (IF > 0)) {
 		IME = 0;
-		std::cout << "interrupt ocured" <<  static_cast<int>(INTERRUPTS::V_BLANK) << std::endl ;
+		std::cout << "interrupt ocured" << std::hex << (int)PC << " "<<  static_cast<int>(INTERRUPTS::V_BLANK) << std::endl ;
 		memory->write(--SP, PC >> 8);
 		memory->write(--SP, PC & 0xFF);
 		if (IF & 1 <<static_cast<uint8_t>(INTERRUPTS::V_BLANK)) {
@@ -777,6 +786,9 @@ Memory::Memory(uint8_t* cart, size_t rom_size, uint8_t* bootrom) {
 }
 
 void Memory::write(uint16_t address, uint8_t data) {
+	if (address == 0xFF46 || (address <= 0xFF55 && address >= 0xFF51)) {
+		std::cout << "DMA occured " << std::hex << (int)address << std::endl;
+	}
 	map[address] = data;
 }
 uint8_t Memory::read(uint16_t address) {
