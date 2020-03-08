@@ -86,8 +86,8 @@ private:
 public:
 	GPU();
 	void set_memmap(Memory* memory);
-	std::unique_ptr<uint8_t[]> frame_buffer = nullptr;
 	void draw_frame();
+	std::unique_ptr<uint8_t[]> frame_buffer = nullptr;
 };
 
 class Gameboy

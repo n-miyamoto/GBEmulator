@@ -189,16 +189,15 @@ void CPU::set_memmap(Memory *mem) {
 
 void CPU::step() 
 {
-
 	if (ready_for_render) return;
 
 	//check interrupt
 	if (IME && (IF > 0)) {
 		IME = 0;
-		std::cout << "interrupt ocured \n";
+		std::cout << "interrupt ocured" <<  static_cast<int>(INTERRUPTS::V_BLANK) << std::endl ;
 		memory->write(--SP, PC >> 8);
 		memory->write(--SP, PC & 0xFF);
-		if (IF & 1<<static_cast<uint8_t>(INTERRUPTS::V_BLANK)) {
+		if (IF & 1 <<static_cast<uint8_t>(INTERRUPTS::V_BLANK)) {
 			PC = VBLANK_INTR_ADDR;
 			IF ^= 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK);
 		}
@@ -213,6 +212,7 @@ void CPU::step()
 	uint16_t tmp = PC;
 	uint8_t op = memory->read(PC++);
 	uint16_t NN;
+	uint32_t NNNN;
 	uint8_t N;
 	int8_t SN;
 	uint8_t D1, D2;
@@ -241,6 +241,19 @@ void CPU::step()
 		break;
 	case 0x06:
 		RBC.b8[HI] = memory->read(PC++); //B
+		break;
+	case 0x09:
+		NNNN = RHL.b16 + RBC.b16;
+		FN = 0;
+		FH = (NNNN ^ RHL.b16 ^ RBC.b16) & 0x1000 ? 1 : 0;
+		FC = (NNNN & 0xFFFF0000) ? 1 : 0;
+		RHL.b8[HI] = (NNNN & 0x0000FF00) >> 8;
+		RHL.b8[LO] = (NNNN & 0x000000FF);
+		break;
+	case 0x0B:
+		NN = RBC.b16 - 1;
+		RBC.b8[HI] = NN >> 8;
+		RBC.b8[LO] = NN & 0xFF;
 		break;
 	case 0x0C:
 		RBC.b8[LO]++;
@@ -289,6 +302,12 @@ void CPU::step()
 		break;
 	case 0x1A:
 		RA = memory->read(RDE.b16);
+		break;
+	case 0x1C:
+		RDE.b8[LO]++;
+		FZ = (RDE.b8[LO] == 0x00);
+		FN = 0;
+		FH = ((RDE.b8[LO] & 0x0F) == 0x00);
 		break;
 	case 0x1D:
 		RDE.b8[LO]--;
@@ -355,6 +374,12 @@ void CPU::step()
 	case 0x2E:
 		RHL.b8[LO] = memory->read(PC++);
 		break;
+	case 0x2A:
+		RA = memory->read(RHL.b16);
+		NN = RHL.b16 + 1;
+		RHL.b8[HI] = NN >> 8;
+		RHL.b8[LO] = NN & 0xFF;
+		break;
 	case 0x31:
 		SP = memory->read(PC++);
 		SP |= memory->read(PC++) << 8;
@@ -364,6 +389,14 @@ void CPU::step()
 		NN = RHL.b16 - 1;
 		RHL.b8[HI] = NN >> 8;
 		RHL.b8[LO] = NN & 0xFF;
+		break;
+	case 0x36:
+		memory->write(RHL.b16, memory->read(PC++));
+		break;
+	case 0x37:
+		FN = 0;
+		FH = 0;
+		FC = 1;
 		break;
 	case 0x3C:
 		RA++;
@@ -450,6 +483,13 @@ void CPU::step()
 		FZ = (RA == 0x00);
 		FN = 0;
 		FH = 1;
+		FC = 0;
+		break;
+	case 0xB1:
+		RA = RA | RBC.b8[LO];
+		FZ = (RA == 0x00);
+		FN = 0;
+		FH = 0;
 		FC = 0;
 		break;
 	case 0xB7:
@@ -558,6 +598,9 @@ void CPU::step()
 		break;
 	case 0xFA:
 		RA = memory->read( memory->read(PC++) | memory->read(PC++) << 8);
+		break;
+	case 0xFB:
+		IME = 1;
 		break;
 	case 0xFE:
 		N = memory->read(PC++);
