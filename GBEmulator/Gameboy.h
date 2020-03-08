@@ -17,6 +17,9 @@
 #define HI (1)
 #define LO (0)
 
+#define FRAME_WIDTH  (160);
+#define FRAME_HEIGHT (144);
+
 typedef union registor {
 	uint16_t b16;
 	uint8_t b8[2];
@@ -31,60 +34,58 @@ enum class INTERRUPTS{
 class CPU
 {
 private:
-	//general registors
-	uint8_t RA;
-	reg RBC;
-	reg RDE;
-	reg RHL;
-	uint16_t SP;
-	uint16_t PC;
-	uint8_t* memory_map;
-	//flags
-	uint8_t FZ;
-	uint8_t FH;
-	uint8_t FN;
-	uint8_t FC;
-	//interrupts
-	uint8_t IME;
-	uint8_t IE;
-	uint8_t IF;
-	
 	void shift_operation_CB();
-
-	uint64_t cycle_count;
-	uint32_t lcd_count;
+	//general registors
+	uint8_t RA = 0;
+	reg RBC = { 0 };
+	reg RDE = { 0 };
+	reg RHL = { 0 };
+	uint16_t SP = { 0 };
+	uint16_t PC = { 0 };
+	uint8_t* memory_map = nullptr;
+	//flags
+	uint8_t FZ = { 0 };
+	uint8_t FH = { 0 };
+	uint8_t FN = { 0 };
+	uint8_t FC = { 0 };
+	//interrupts
+	uint8_t IME = { 0 };
+	uint8_t IE = { 0 };
+	uint8_t IF = { 0 };
+	uint64_t cycle_count = 0;
+	uint32_t lcd_count = 0;
 public:
 	CPU();
 	void set_memmap(uint8_t* memmap);
 	void step();
 	void set_interrupt_flag(INTERRUPTS intrpt);
 	void dump_reg(void);
-	bool ready_for_render;
+	bool ready_for_render = false;
 };
 
 class GPU {
 private:
-	uint8_t* memory_map;
-	uint8_t frame_width;
-	uint8_t frame_height;
+	uint8_t* memory_map = nullptr;
+	uint8_t frame_width = FRAME_WIDTH;
+	uint8_t frame_height = FRAME_HEIGHT;
+	uint8_t* total_frame = nullptr;
 	void rasterize_tile(uint8_t tile_x, uint8_t tile_y, uint8_t tilenum);
 public:
 	GPU();
 	~GPU();
 	void set_memmap(uint8_t* memmap);
-	uint8_t* total_frame;
-	uint8_t* frame_buffer;
+	uint8_t* frame_buffer = nullptr;
 	void draw_frame();
 };
 
 class Gameboy
 {
 private:
-	uint8_t* memory_map;
-	uint8_t* rom_ptr;
-	size_t  rom_size;
-	uint8_t* save_ptr;
-	size_t save_size;
+	uint8_t* memory_map = nullptr;
+	uint8_t* rom_ptr = nullptr;
+	size_t  rom_size = 0; 
+	uint8_t* save_ptr = nullptr;
+	size_t save_size = 0;
 
 public:
 	CPU cpu;

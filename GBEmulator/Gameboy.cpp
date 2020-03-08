@@ -30,9 +30,12 @@ Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) {
 	save_size = ram_sizes[rom[ROM_RAM_SIZE]];
 	save_ptr = (uint8_t*)malloc(save_size);
 	memory_map = (uint8_t*)malloc(sizeof(uint8_t) * 0x10000);
-	memset(memory_map, 0, 0x10000);
-	memcpy(memory_map, rom, size);
-	memcpy(memory_map, boot_rom, 0x100);
+	if (memory_map == nullptr) {
+		std::cerr << "GB Initialize failed." << std::endl;
+	}
+	std::memset(memory_map, 0, 0x10000);
+	std::memcpy(memory_map, rom, size);
+	std::memcpy(memory_map, boot_rom, 0x100);
 	cpu.set_memmap(memory_map);
 	gpu.set_memmap(memory_map);
 }
@@ -48,7 +51,7 @@ void Gameboy::stepCPU(void) {
 void Gameboy::showTitle() {
 	char str[ROM_TITLE_END - ROM_TITLE_START + 1];
 	str[ROM_TITLE_END - ROM_TITLE_START] = -1;
-	memcpy(str, memory_map + ROM_TITLE_START, ROM_TITLE_END - ROM_TITLE_START + 1);
+	std::memcpy(str, memory_map + ROM_TITLE_START, ROM_TITLE_END - ROM_TITLE_START + 1);
 	std::cout << str << std::endl;
 }
 
@@ -182,27 +185,6 @@ void CPU::shift_operation_CB() {
 }
 
 CPU::CPU() {
-#if 0
-	RA = 1;
-	RBC.b8[HI] = 0;
-	RBC.b8[LO] = 0x13;
-	RDE.b8[HI] = 0;
-	RDE.b8[LO] = 0xD8;
-	RHL.b8[HI] = 0x01;
-	RHL.b8[LO] = 0x4D;
-	SP= 0xFFFE;
-	PC= 0x100;
-	FZ = 1;
-	FH = 1;
-	FN = 0;
-	FC = 1;
-	IME = 1;
-	IF = 0;
-#endif
-	PC = 0;
-	cycle_count = 0;
-	lcd_count = 0;
-	ready_for_render = false;
 }
 
 void CPU::set_memmap(uint8_t* memmap) {
@@ -639,7 +621,13 @@ GPU::GPU() {
 	frame_buffer = (uint8_t*)malloc(sizeof(uint8_t)*frame_width*frame_height);
 	total_frame= (uint8_t*)malloc(sizeof(uint8_t)*256*256);
 	memset(frame_buffer, 0, frame_height * frame_width);
+	if (frame_buffer == nullptr) {
+		std::cerr << "frame buffer malloc failed." << std::endl;
+	}
 	memset(total_frame, 0, 256 * 256);
+	if (frame_buffer == nullptr) {
+		std::cerr << "frame buffer malloc failed." << std::endl;
+	}
 }
 GPU::~GPU() {
 	free(frame_buffer);
@@ -664,8 +652,6 @@ void GPU::draw_frame() {
 	auto obj_size = (memory_map[LCDC] >> 2) & 0x01;
 	auto obj_display_enable = (memory_map[LCDC] >> 1) & 0x01;
 	auto bg_display = (memory_map[LCDC] >> 0) & 0x01;
-
-
 
 	//draw background
 	if (bg_display) {

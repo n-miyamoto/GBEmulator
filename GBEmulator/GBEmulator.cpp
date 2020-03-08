@@ -4,8 +4,6 @@
 #include <iostream>
 #include <algorithm>
 #include <random>
-
-//#include <GL/gl.h>
 #include <GL/glut.h>
 #include "Gameboy.h"
 #pragma warning(disable: 4996) 
@@ -110,12 +108,6 @@ int main(int argc, char *argv[])
 	gb.showCartInfo();
 	GB = &gb;
 
-
-	//for(int i=0;i<0xFF;i++)
-		//std::cout << i << " " << (int)bootrom[i] << std::endl;
-
-
-
 	bitmap = new unsigned char[IMAGE_SIZE_IN_BYTE];
 
 	glutInit(&argc, argv);
@@ -132,7 +124,7 @@ int main(int argc, char *argv[])
 	glutMainLoop();
 
 	free(rom);
-	delete bitmap;
+	delete[] bitmap;
 
 	return 0;
 }
