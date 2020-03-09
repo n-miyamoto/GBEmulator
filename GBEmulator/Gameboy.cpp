@@ -274,6 +274,9 @@ void CPU::step()
 		RHL.b8[HI] = (NNNN & 0x0000FF00) >> 8;
 		RHL.b8[LO] = (NNNN & 0x000000FF);
 		break;
+	case 0x0A:
+		RA = memory->read(RBC.b16);
+		break;
 	case 0x0B:
 		NN = RBC.b16 - 1;
 		RBC.b8[HI] = NN >> 8;
@@ -416,9 +419,6 @@ void CPU::step()
 		SN = (int8_t)memory->read(PC++);
 		if (FZ) PC += SN;
 		break;
-	case 0x2E:
-		RHL.b8[LO] = memory->read(PC++);
-		break;
 	case 0x2A:
 		RA = memory->read(RHL.b16);
 		NN = RHL.b16 + 1;
@@ -430,6 +430,16 @@ void CPU::step()
 		FZ = (RHL.b8[LO] == 0x00);
 		FN = 0;
 		FH = ((RHL.b8[LO] & 0x0F) == 0x00);
+		break;
+	case 0x2D:
+		RHL.b8[LO]--;
+		FZ = (RHL.b8[LO] == 0x00);
+		FN = 1;
+		FH = ((RHL.b8[LO] & 0x0F) == 0x0F);
+		break;
+		break;
+	case 0x2E:
+		RHL.b8[LO] = memory->read(PC++);
 		break;
 	case 0x2F:
 		RA = RA ^ 0xFF;
@@ -468,6 +478,12 @@ void CPU::step()
 		FH = 0;
 		FC = 1;
 		break;
+	case 0x3A:
+		RA = memory->read(RHL.b16);
+		NN = RHL.b16 - 1;
+		RHL.b8[HI] = NN >> 8;
+		RHL.b8[LO] = NN & 0xFF;
+			break;
 	case 0x3C:
 		RA++;
 		FZ = (RA == 0x00);
@@ -491,11 +507,34 @@ void CPU::step()
 	case 0x44:
 		RBC.b8[HI] = RHL.b8[HI];
 		break;
+	case 0x46:	
+		RBC.b8[HI] = memory->read(RHL.b16);
+		break;
 	case 0x47:
 		RBC.b8[HI] = RA;
 		break;
+	case 0x4E:	
+		RBC.b8[LO] = memory->read(RHL.b16);
+		break;
 	case 0x4F:
 		RBC.b8[LO] = RA;
+		break;
+	case 0x50:
+		RDE.b8[HI] = RBC.b8[HI];
+		break;
+	case 0x51:
+		RDE.b8[HI] = RBC.b8[LO];
+		break;
+	case 0x52:// do nothing
+		break;
+	case 0x53:
+		RDE.b8[HI] = RDE.b8[LO];
+		break;
+	case 0x54:
+		RDE.b8[HI] = RHL.b8[HI];
+		break;
+	case 0x55:
+		RDE.b8[HI] = RHL.b8[LO];
 		break;
 	case 0x56:
 		RDE.b8[HI] = memory->read(RHL.b16);
@@ -509,17 +548,52 @@ void CPU::step()
 	case 0x59:
 		RDE.b8[LO] = RDE.b8[HI];
 		break;
+	case 0x5B://do nothing
+		break;
+	case 0x5C:
+		RDE.b8[LO] = RHL.b8[HI];
+		break;
+	case 0x5D:
+		RDE.b8[LO] = RHL.b8[LO];
+		break;
 	case 0x5E:
 		RDE.b8[LO] = memory->read(RHL.b16);
 		break;
 	case 0x5F:
 		RDE.b8[LO] = RA;
 		break;
+	case 0x60:
+		RHL.b8[HI] = RBC.b8[HI];
+		break;
+	case 0x62:
+		RHL.b8[HI] = RDE.b8[HI];
+		break;
 	case 0x66:
 		RHL.b8[HI] = memory->read(RHL.b16);
 		break;
 	case 0x67:
 		RHL.b8[HI] = RA;
+		break;
+	case 0x69:
+		RHL.b8[LO] = RBC.b8[LO];
+		break;
+	case 0x6B:
+		RHL.b8[LO] = RDE.b8[LO];
+		break;
+	case 0x6F:
+		RHL.b8[LO] = RA;
+		break;	
+	case 0x70:
+		memory->write(RHL.b16, RBC.b8[HI]);
+		break;
+	case 0x71:
+		memory->write(RHL.b16, RBC.b8[LO]);
+		break;
+	case 0x72:
+		memory->write(RHL.b16, RDE.b8[HI]);
+		break;
+	case 0x73:
+		memory->write(RHL.b16, RDE.b8[LO]);
 		break;
 	case 0x77:
 		memory->write(RHL.b16,  RA);
@@ -544,6 +618,14 @@ void CPU::step()
 		break;
 	case 0x7E:
 		RA = memory->read(RHL.b16);
+		break;
+	case 0x85:
+		NN = RA + RHL.b8[LO];
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 0;
+		FH = (RA ^ RHL.b8[LO] ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
 		break;
 	case 0x86:
 		N = memory->read(RHL.b16);
@@ -651,6 +733,11 @@ void CPU::step()
 		RBC.b8[LO] = memory->read(SP++);
 		RBC.b8[HI] = memory->read(SP++);
 		break;
+	case 0xC2:
+		NN = memory->read(PC++);
+		NN |= memory->read(PC++) << 8;
+		if (!FZ) PC = NN;
+		break;
 	case 0xC3:
 		NN = memory->read(PC++);
 		NN |= memory->read(PC++) << 8;
@@ -659,6 +746,15 @@ void CPU::step()
 	case 0xC5:
 		memory->write(--SP,RBC.b8[HI]);
 		memory->write(--SP,RBC.b8[LO]);
+		break;
+	case 0xC6: // ADD A, imm
+		N = memory->read(PC++);
+		NN = RA + N;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 0;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
 		break;
 	case 0xC8:
 		if (FZ)
@@ -760,6 +856,13 @@ void CPU::step()
 	case 0xF5:
 		memory->write(--SP , RA);
 		memory->write(--SP , FZ<<7|FN<<6|FH<<5|FC<<4);
+		break;
+	case 0xF6:
+		RA = RA | memory->read(PC++);
+		FZ = (RA == 0x00);
+		FN = 0;
+		FH = 0;
+		FC = 0;
 		break;
 	case 0xF9:
 		SP = RHL.b16;
