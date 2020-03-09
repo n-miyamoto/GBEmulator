@@ -202,8 +202,6 @@ void CPU::step()
 {
 	if (ready_for_render) return;
 
-	//check interrupt
-#if 0
 	if (IME && (IF > 0)) {
 		IME = 0;
 		std::cout << "interrupt ocured" << std::hex << (int)PC << " "<<  static_cast<int>(INTERRUPTS::V_BLANK) << std::endl ;
@@ -214,16 +212,14 @@ void CPU::step()
 			IF ^= 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK);
 		}
 	}
-#endif
 
 	if (PC == 0x100 && memory->is_booting) {
 		std::cout << "finish boot seqence\n";
 		memory->is_booting = false;
 	}
 
-	if(!memory->is_booting)
-		//dump_reg();
-	//fetch
+
+	//dump_reg();
 	uint16_t tmp = PC;
 	uint8_t op = memory->read(PC++);
 	uint16_t NN;
@@ -420,6 +416,13 @@ void CPU::step()
 		NN = RHL.b16 - 1;
 		RHL.b8[HI] = NN >> 8;
 		RHL.b8[LO] = NN & 0xFF;
+		break;
+	case 0x34:
+		N = memory->read(RHL.b16) + 1;
+		FZ = (N == 0x00);
+		FN = 0;
+		FH = ((N & 0x0F) == 0x00);
+		memory->write(RHL.b16, N);
 		break;
 	case 0x36:
 		memory->write(RHL.b16, memory->read(PC++));
@@ -664,7 +667,7 @@ void CPU::step()
 		IME = 0;
 		break;
 	case 0xE2:
-		memory->write(0xFF | RBC.b8[LO], RA);
+		memory->write(0xFF00 | RBC.b8[LO], RA);
 		break;
 	case 0xE5:
 		memory->write(--SP,RHL.b8[HI]);
@@ -880,6 +883,12 @@ Memory::Memory(uint8_t* cart, size_t rom_size, uint8_t* bootrom) {
 	std::memcpy(boot_rom, bootrom, 0x100);
 }
 
+void Memory::dma_operation(uint8_t src) {
+	uint16_t src_addr = src << 16;	//copy from 0x**00 ~ 0x**9F
+	uint16_t dst_addr = 0xFE00;		//copy to   0xFE00 ~ 0xFE9F
+	std::memcpy(map + src_addr, map + dst_addr, 0x9F);
+}
+
 void Memory::write(uint16_t address, uint8_t data) {
 	//handle key input
 	if (address == 0xFF00) {	
@@ -887,11 +896,19 @@ void Memory::write(uint16_t address, uint8_t data) {
 		else if (data | 0x10) data |= 0x10 + (key>>4);
 	}
 
-	if (address == 0xFF46) std::cout << "DMA\n";
+	//DMA operation
+	if (address == 0xFF46) {
+		dma_operation(data);
+		std::cout << "DMA\n";
+	}
+
+	//Default operation
 	map[address] = data;
 }
 uint8_t Memory::read(uint16_t address) {
+
 	if (is_booting && address<0x100 ) {
+		//booting read from boot rom
 		return boot_rom[address];
 	}
 	return map[address];
