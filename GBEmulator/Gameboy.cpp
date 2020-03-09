@@ -424,6 +424,12 @@ void CPU::step()
 		RHL.b8[HI] = NN >> 8;
 		RHL.b8[LO] = NN & 0xFF;
 		break;
+	case 0x2C:
+		RHL.b8[LO]++;
+		FZ = (RHL.b8[LO] == 0x00);
+		FN = 0;
+		FH = ((RHL.b8[LO] & 0x0F) == 0x00);
+		break;
 	case 0x2F:
 		RA = RA ^ 0xFF;
 		FN = 1;
@@ -444,6 +450,13 @@ void CPU::step()
 		FZ = (N == 0x00);
 		FN = 0;
 		FH = ((N & 0x0F) == 0x00);
+		memory->write(RHL.b16, N);
+		break;
+	case 0x35:
+		N = memory->read(RHL.b16) - 1;
+		FZ = (N == 0x00);
+		FN = 1;
+		FH = ((N & 0x0F) == 0x0F);
 		memory->write(RHL.b16, N);
 		break;
 	case 0x36:
