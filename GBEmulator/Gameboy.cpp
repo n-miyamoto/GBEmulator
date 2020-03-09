@@ -203,6 +203,7 @@ void CPU::step()
 	if (ready_for_render) return;
 
 	//check interrupt
+#if 0
 	if (IME && (IF > 0)) {
 		IME = 0;
 		std::cout << "interrupt ocured" << std::hex << (int)PC << " "<<  static_cast<int>(INTERRUPTS::V_BLANK) << std::endl ;
@@ -213,6 +214,7 @@ void CPU::step()
 			IF ^= 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK);
 		}
 	}
+#endif
 
 	if (PC == 0x100 && memory->is_booting) {
 		std::cout << "finish boot seqence\n";
@@ -250,7 +252,7 @@ void CPU::step()
 		RBC.b8[HI]--;
 		FZ = (RBC.b8[HI] == 0);
 		FN = 1;
-		FH = ((RBC.b8[HI] & 0x0F) == 0);
+		FH = ((RBC.b8[HI] & 0x0F) == 0x0F);
 		break;
 	case 0x06:
 		RBC.b8[HI] = memory->read(PC++); //B
@@ -287,6 +289,9 @@ void CPU::step()
 		RDE.b8[LO] = memory->read(PC++); //B
 		RDE.b8[HI] = memory->read(PC++); //B
 		break;
+	case 0x12:
+		memory->write(RDE.b16, RA);
+		break;
 	case 0x13:
 		NN = RDE.b16 + 1;
 		RDE.b8[HI] = NN >> 8;
@@ -312,6 +317,14 @@ void CPU::step()
 	case 0x18:
 		SN = (int8_t)memory->read(PC++);
 		PC += SN;
+		break;
+	case 0x19:
+		NNNN = RHL.b16 + RDE.b16;
+		FN = 0;
+		FH = (NNNN ^ RHL.b16 ^ RDE.b16) & 0x1000 ? 1 : 0;
+		FC = (NNNN & 0xFFFF0000) ? 1 : 0;
+		RHL.b8[HI] = (NNNN & 0x0000FF00) >> 8;
+		RHL.b8[LO] = (NNNN & 0x000000FF);
 		break;
 	case 0x1A:
 		RA = memory->read(RDE.b16);
@@ -393,6 +406,11 @@ void CPU::step()
 		RHL.b8[HI] = NN >> 8;
 		RHL.b8[LO] = NN & 0xFF;
 		break;
+	case 0x2F:
+		RA = RA ^ 0xFF;
+		FN = 1;
+		FH = 1;
+		break;
 	case 0x31:
 		SP = memory->read(PC++);
 		SP |= memory->read(PC++) << 8;
@@ -437,6 +455,9 @@ void CPU::step()
 	case 0x4F:
 		RBC.b8[LO] = RA;
 		break;
+	case 0x56:
+		RDE.b8[HI] = memory->read(RHL.b16);
+		break;
 	case 0x57:
 		RDE.b8[HI] = RA;
 		break;
@@ -445,6 +466,12 @@ void CPU::step()
 		break;
 	case 0x59:
 		RDE.b8[LO] = RDE.b8[HI];
+		break;
+	case 0x5E:
+		RDE.b8[LO] = memory->read(RHL.b16);
+		break;
+	case 0x5F:
+		RDE.b8[LO] = RA;
 		break;
 	case 0x66:
 		RHL.b8[HI] = memory->read(RHL.b16);
@@ -457,6 +484,12 @@ void CPU::step()
 		break;
 	case 0x78:
 		RA = RBC.b8[HI];
+		break;
+	case 0x79:
+		RA = RBC.b8[LO];
+		break;
+	case 0x7A:
+		RA = RDE.b8[HI];
 		break;
 	case 0x7B:
 		RA = RDE.b8[LO];
@@ -479,6 +512,14 @@ void CPU::step()
 		FC = (NN & 0xFF00) ? 1 : 0;
 		RA = NN & 0xFF;
 		break;
+	case 0x87:
+		NN = RA + RA;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 0;
+		FH = NN & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
 	case 0x90:
 		NN = RA - RBC.b8[HI];
 		FZ = ((NN & 0xFF) == 0x00);
@@ -486,6 +527,13 @@ void CPU::step()
 		FH = (RA ^ RBC.b8[HI] ^ NN) & 0x10 ? 1 : 0;
 		FC = (NN & 0xFF00) ? 1 : 0;
 		RA = NN & 0xFF;
+		break;
+	case 0xA1:
+		RA = RA & RBC.b8[LO];
+		FZ = (RA == 0x00);
+		FN = 0;
+		FH = 1;
+		FC = 0;
 		break;
 	case 0xAF:
 		RA = 0x00;
@@ -496,6 +544,20 @@ void CPU::step()
 		FZ = (RA == 0x00);
 		FN = 0;
 		FH = 1;
+		FC = 0;
+		break;
+	case 0xA9:
+		RA = RA ^ RBC.b8[LO];
+		FZ = (RA == 0x00);
+		FN = 0;
+		FH = 0;
+		FC = 0;
+		break;
+	case 0xB0:
+		RA = RA | RBC.b8[HI];
+		FZ = (RA == 0x00);
+		FN = 0;
+		FH = 0;
 		FC = 0;
 		break;
 	case 0xB1:
@@ -553,6 +615,11 @@ void CPU::step()
 		NN |= memory->read(SP++) << 8;
 		PC = NN;
 		break;
+	case 0xCA:
+		NN =  memory->read(PC++);
+		NN |= memory->read(PC++) << 8;
+		if (FZ) PC = NN;
+		break;
 	case 0xCB:
 		shift_operation_CB();
 		break;
@@ -572,12 +639,20 @@ void CPU::step()
 		FC = (NN & 0xFF00) ? 1 : 0;
 		RA = NN & 0xFF;
 		break;
+	case 0xD1:
+		RDE.b8[LO] = memory->read(SP++);
+		RDE.b8[HI] = memory->read(SP++);
+		break;
 	case 0xD5:
 		memory->write(--SP,RDE.b8[HI]);
 		memory->write(--SP,RDE.b8[LO]);
 		break;
 	case 0xE0:
 		memory->write((0xFF00 | memory->read(PC++)),  RA);
+		break;
+	case 0xE1:
+		RHL.b8[LO] = memory->read(SP++);
+		RHL.b8[HI] = memory->read(SP++);
 		break;
 	case 0xEA:
 		memory->write(memory->read(PC++) |memory->read(PC++)<<8,  RA);
@@ -601,6 +676,22 @@ void CPU::step()
 		FN = 0;
 		FH = 1;
 		FC = 0;
+		break;
+	case 0xE9:
+		PC = RHL.b16;
+		break;
+	case 0xEF:
+		memory->write(--SP, PC >> 8);
+		memory->write(--SP, PC & 0xFF);
+		PC = 0x0028;
+		break;
+	case 0xF1:
+		N = memory->read(SP++);
+		FZ = (N >> 7) & 1;
+		FN = (N >> 6) & 1;
+		FH = (N >> 5) & 1;
+		FC = (N >> 4) & 1;
+		RA = memory->read(SP++);
 		break;
 	case 0xF5:
 		memory->write(--SP , RA);
@@ -790,10 +881,13 @@ Memory::Memory(uint8_t* cart, size_t rom_size, uint8_t* bootrom) {
 }
 
 void Memory::write(uint16_t address, uint8_t data) {
-	if (address == 0xFF00) {
+	//handle key input
+	if (address == 0xFF00) {	
 		if (data | 0x20) data |= 0x20 + (key & 0x0F);
 		else if (data | 0x10) data |= 0x10 + (key>>4);
 	}
+
+	if (address == 0xFF46) std::cout << "DMA\n";
 	map[address] = data;
 }
 uint8_t Memory::read(uint16_t address) {
