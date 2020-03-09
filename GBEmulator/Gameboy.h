@@ -78,8 +78,6 @@ private:
 	uint8_t FC = { 0 };
 	//interrupts
 	uint8_t IME = { 0 };
-	uint8_t IE = { 0 };
-	uint8_t IF = { 0 };
 	uint64_t cycle_count = 0;
 	uint32_t lcd_count = 0;
 public:

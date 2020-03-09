@@ -201,18 +201,19 @@ void CPU::set_memmap(Memory *mem) {
 void CPU::step() 
 {
 	if (ready_for_render) return;
-#if 0
-	if (IME && (IF > 0)) {
-		IME = 0;
-		//std::cout << "interrupt ocured" << std::hex << (int)PC << " "<<  static_cast<int>(INTERRUPTS::V_BLANK) << std::endl ;
-		memory->write(--SP, PC >> 8);
-		memory->write(--SP, PC & 0xFF);
-		if (IF & 1 <<static_cast<uint8_t>(INTERRUPTS::V_BLANK)) {
+
+	//Handle interrupt
+	if (IME) {
+		// V-blank interrupt
+		if (!!(memory->read(0xFF0F) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK)) &&
+			!!(memory->read(0xFFFF) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK))) {
+			memory->write(--SP, PC >> 8);
+			memory->write(--SP, PC & 0xFF);
 			PC = VBLANK_INTR_ADDR;
-			IF ^= 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK);
+			uint8_t IF = memory->read(0xFF0F) ^ 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK);
+			memory->write(0xFF0F, IF);
 		}
 	}
-#endif
 
 	if (PC == 0x100 && memory->is_booting) {
 		std::cout << "finish boot seqence\n";
@@ -797,7 +798,7 @@ void CPU::step()
 
 }
 void CPU::set_interrupt_flag(INTERRUPTS intrpt) {
-	IF |= 1 << static_cast<uint8_t>(intrpt);
+	memory->write( 0xFF0F , memory->read(0xFF0F) | 1 << static_cast<uint8_t>(intrpt) );
 }
 
 void CPU::dump_reg() {
@@ -959,7 +960,6 @@ void Memory::write(uint16_t address, uint8_t data) {
 	//DMA operation
 	if (address == 0xFF46) {
 		dma_operation(data);
-		std::cout << "DMA\n";
 	}
 
 	//Default operation
