@@ -60,7 +60,7 @@ void Gameboy::showCartInfo() {
 void Gameboy::press(KEYS key) {
 	std::cout << "key pressed" << std::endl;
 	key_pressed[static_cast<int>(key)] = true;
-	memory->key |= 1 << static_cast<int>(key);
+	memory->key |= 0 << static_cast<int>(key);
 }
 void Gameboy::release(KEYS key){
 	std::cout << "key released" << std::endl;
@@ -201,10 +201,10 @@ void CPU::set_memmap(Memory *mem) {
 void CPU::step() 
 {
 	if (ready_for_render) return;
-
+#if 0
 	if (IME && (IF > 0)) {
 		IME = 0;
-		std::cout << "interrupt ocured" << std::hex << (int)PC << " "<<  static_cast<int>(INTERRUPTS::V_BLANK) << std::endl ;
+		//std::cout << "interrupt ocured" << std::hex << (int)PC << " "<<  static_cast<int>(INTERRUPTS::V_BLANK) << std::endl ;
 		memory->write(--SP, PC >> 8);
 		memory->write(--SP, PC & 0xFF);
 		if (IF & 1 <<static_cast<uint8_t>(INTERRUPTS::V_BLANK)) {
@@ -212,12 +212,12 @@ void CPU::step()
 			IF ^= 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK);
 		}
 	}
+#endif
 
 	if (PC == 0x100 && memory->is_booting) {
 		std::cout << "finish boot seqence\n";
 		memory->is_booting = false;
 	}
-
 
 	//dump_reg();
 	uint16_t tmp = PC;
@@ -238,6 +238,11 @@ void CPU::step()
 	case 0x02:
 		memory->write(RBC.b16, RA);
 		break;
+	case 0x03:
+		NN = RBC.b16 + 1;
+		RBC.b8[HI] = NN >> 8;
+		RBC.b8[LO] = NN & 0xFF;
+		break;
 	case 0x04:
 		RBC.b8[HI]++;
 		FZ = (RBC.b8[HI] == 0x00);
@@ -252,6 +257,13 @@ void CPU::step()
 		break;
 	case 0x06:
 		RBC.b8[HI] = memory->read(PC++); //B
+		break;
+	case 0x07: // RLCA
+		RA = (RA << 1) | (RA >> 7);
+		FZ = 0;
+		FN = 0;
+		FH = 0;
+		FC = (RA & 0x01);
 		break;
 	case 0x09:
 		NNNN = RHL.b16 + RBC.b16;
@@ -292,6 +304,13 @@ void CPU::step()
 		NN = RDE.b16 + 1;
 		RDE.b8[HI] = NN >> 8;
 		RDE.b8[LO] = NN & 0xFF;
+		break;
+	case 0x14:
+		RDE.b8[HI]++;
+		FZ = (RDE.b8[HI] == 0x00);
+		FN = 0;
+		FH = ((RDE.b8[HI] & 0x0F) == 0x00);
+		break;
 		break;
 	case 0x15:
 		RDE.b8[HI]--;
@@ -364,6 +383,9 @@ void CPU::step()
 		FZ = (RHL.b8[HI] == 0x00);
 		FN = 0;
 		FH = ((RHL.b8[HI] & 0x0F) == 0x00);
+		break;
+	case 0x26:
+		RHL.b8[HI] = memory->read(PC++);
 		break;
 	case 0x27:
 		D1 = RA >> 4;
@@ -452,6 +474,9 @@ void CPU::step()
 		FH = 0;
 		FC = FC ^ 0x1;
 		break;
+	case 0x44:
+		RBC.b8[HI] = RHL.b8[HI];
+		break;
 	case 0x47:
 		RBC.b8[HI] = RA;
 		break;
@@ -523,6 +548,15 @@ void CPU::step()
 		FC = (NN & 0xFF00) ? 1 : 0;
 		RA = NN & 0xFF;
 		break;
+	case 0x8C:
+		N = RHL.b8[HI];
+		NN = RA + N + FC;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 0;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
 	case 0x90:
 		NN = RA - RBC.b8[HI];
 		FZ = ((NN & 0xFF) == 0x00);
@@ -538,11 +572,6 @@ void CPU::step()
 		FH = 1;
 		FC = 0;
 		break;
-	case 0xAF:
-		RA = 0x00;
-		FZ = 1;
-		FN = FH = FC = 0;
-		break;
 	case 0xA7:
 		FZ = (RA == 0x00);
 		FN = 0;
@@ -555,6 +584,18 @@ void CPU::step()
 		FN = 0;
 		FH = 0;
 		FC = 0;
+		break;
+	case 0xAE:
+		RA = RA ^ memory->read(RHL.b16);
+		FZ = (RA == 0x00);
+		FN = 0;
+		FH = 0;
+		FC = 0;
+		break;
+	case 0xAF:
+		RA = 0x00;
+		FZ = 1;
+		FN = FH = FC = 0;
 		break;
 	case 0xB0:
 		RA = RA | RBC.b8[HI];
@@ -650,6 +691,12 @@ void CPU::step()
 		memory->write(--SP,RDE.b8[HI]);
 		memory->write(--SP,RDE.b8[LO]);
 		break;
+	case 0xD9:
+		NN = memory->read(SP++);
+		NN |= memory->read(SP++) << 8;
+		PC = NN;
+		IME = 1;
+		break;
 	case 0xE0:
 		memory->write((0xFF00 | memory->read(PC++)),  RA);
 		break;
@@ -659,12 +706,6 @@ void CPU::step()
 		break;
 	case 0xEA:
 		memory->write(memory->read(PC++) |memory->read(PC++)<<8,  RA);
-		break;
-	case 0xF0:
-		RA = memory->read((0xFF00 | memory->read(PC++)));
-		break;
-	case 0xF3:
-		IME = 0;
 		break;
 	case 0xE2:
 		memory->write(0xFF00 | RBC.b8[LO], RA);
@@ -688,6 +729,9 @@ void CPU::step()
 		memory->write(--SP, PC & 0xFF);
 		PC = 0x0028;
 		break;
+	case 0xF0:
+		RA = memory->read((0xFF00 | memory->read(PC++)));
+		break;
 	case 0xF1:
 		N = memory->read(SP++);
 		FZ = (N >> 7) & 1;
@@ -695,6 +739,9 @@ void CPU::step()
 		FH = (N >> 5) & 1;
 		FC = (N >> 4) & 1;
 		RA = memory->read(SP++);
+		break;
+	case 0xF3:
+		IME = 0;
 		break;
 	case 0xF5:
 		memory->write(--SP , RA);
@@ -884,9 +931,9 @@ Memory::Memory(uint8_t* cart, size_t rom_size, uint8_t* bootrom) {
 }
 
 void Memory::dma_operation(uint8_t src) {
-	uint16_t src_addr = src << 16;	//copy from 0x**00 ~ 0x**9F
+	uint16_t src_addr = src << 8;	//copy from 0x**00 ~ 0x**9F
 	uint16_t dst_addr = 0xFE00;		//copy to   0xFE00 ~ 0xFE9F
-	std::memcpy(map + src_addr, map + dst_addr, 0x9F);
+	std::memcpy(map + dst_addr, map + src_addr, 0x9F);
 }
 
 void Memory::write(uint16_t address, uint8_t data) {

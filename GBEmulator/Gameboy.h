@@ -52,7 +52,7 @@ private:
 	uint8_t boot_rom[BOOTROM_SIZE];
 	void dma_operation(uint8_t src);
 public:
-	uint8_t key = 0;
+	uint8_t key = 0xFF;
 	Memory(uint8_t* cart, size_t rom_size,  uint8_t* bootrom);
 	void write(uint16_t address, uint8_t data);
 	uint8_t read(uint16_t address);
