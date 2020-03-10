@@ -1097,26 +1097,25 @@ void GPU::draw_frame() {
 		for (int i = 0; i < 256 * 256; i++) total_frame[i] = 0;//clear white
 	}
 	
-#if 0
 	if (window_display) {
 		//draw window
 		auto window_top_addr = 0x9800 + 0x400 * window_tilemap_select;
 		auto tile_top_addr = 0x9000 - 0x1000 * tiledata_select;
 		for (int i = 0; i < 32; i++) {
 			for (int j = 0; j < 32; j++) {
-				auto tilenum = memory_map[window_top_addr + i * 32 + j];
+				auto tilenum = memory->read(window_top_addr + i * 32 + j);
 				uint16_t tile_id;
 				if (!tiledata_select) tile_id = (int8_t)tilenum;
 				else tile_id = tilenum;
 				auto tile_addr = tile_top_addr + 16 * tile_id;
 				for (int k = 0; k < 8; k++) { //1 tile has 16 byte 8px * 8line 
-					uint8_t b1 = memory_map[tile_addr++];
-					uint8_t b2 = memory_map[tile_addr++];
+					uint8_t b1 = memory->read(tile_addr++);
+					uint8_t b2 = memory->read(tile_addr++);
 					for (int l = 0; l < 8; l++) {
-						auto px = ((b2 >> (7 - l)) & 0x01) << 7;
-						px += ((b1 >> (7 - l)) & 0x01) << 6;
-						auto x = 8 * i + k;
-						auto y = 8 * j + l;
+						auto px = ((b2 >> (7 - l)) & 0x01);
+						px += ((b1 >> (7 - l)) & 0x01) << 1;
+						auto y = 8 * i + k;
+						auto x = 8 * j + l;
 						if(px!=0) total_frame[y * 256 + x] = px;
 					}
 				}
@@ -1125,33 +1124,6 @@ void GPU::draw_frame() {
 	}
 
 
-	if (obj_display_enable) {
-		//draw obj
-		auto obj_top_addr = 0xFE00;
-		auto obj_addr = obj_top_addr;
-		auto tile_top_addr = 0x8000;
-		for (int i = 0; i < 40; i++) {//40 objects 
-			auto top = memory_map[obj_addr++];
-			auto left= memory_map[obj_addr++];
-			auto tile_id = memory_map[obj_addr++];
-			auto flags = memory_map[obj_addr++];
-			auto tile_addr = tile_top_addr + 16 * tile_id;
-			
-			for (int k = 0; k < 8; k++) { //1 tile has 16 byte 8px * 8line 
-				uint8_t b1 = memory_map[tile_addr++];
-				uint8_t b2 = memory_map[tile_addr++];
-				for (int l = 0; l < 8; l++) {
-					auto px = ((b2 >> (7 - l)) & 0x01) << 7;
-					px += ((b1 >> (7 - l)) & 0x01) << 6;
-					auto x = left + k;
-					auto y = top + l;
-					if (px != 0) total_frame[y * 256 + x] = px;
-				}
-			}
-
-		}
-	}	
-#endif	
 	auto scroll_y = memory->read(LCD_SCROLL_Y);
 	auto scroll_x = memory->read(LCD_SCROLL_X);
 
@@ -1161,10 +1133,37 @@ void GPU::draw_frame() {
 				frame_buffer[y * frame_width + x] = total_frame[(scroll_y + y) * 256 + (scroll_x + x)];
 			}
 			else {
-					frame_buffer[y * frame_width + x] = 0;
+				frame_buffer[y * frame_width + x] = 0;
 			}
 		}
 	}
+	
+	if (obj_display_enable) {
+		//draw obj
+		auto obj_top_addr = 0xFE00;
+		auto obj_addr = obj_top_addr;
+		auto tile_top_addr = 0x8000;
+		for (int i = 0; i < 40; i++) {//40 objects 
+			auto top = memory->read(obj_addr++) - 16;
+			auto left= memory->read(obj_addr++) - 8;
+			auto tile_id = memory->read(obj_addr++);
+			auto flags = memory->read(obj_addr++);
+			auto tile_addr = tile_top_addr + 16 * tile_id;
+			
+			for (int k = 0; k < 8; k++) { //1 tile has 16 byte 8px * 8line 
+				uint8_t b1 = memory->read(tile_addr++);
+				uint8_t b2 = memory->read(tile_addr++);
+				for (int l = 0; l < 8; l++) {
+					auto px = ((b2 >> (7 - l)) & 0x01);
+					px += ((b1 >> (7 - l)) & 0x01) << 1;
+					auto x = left + l;
+					auto y = top + k;
+					if (px != 0) frame_buffer[y * frame_width + x] = px;
+				}
+			}
+
+		}
+	}	
 }
 
 	
@@ -1183,8 +1182,8 @@ void Memory::dma_operation(uint8_t src) {
 void Memory::write(uint16_t address, uint8_t data) {
 	//handle key input
 	if (address == 0xFF00) {	
-		if (data | 0x20) data |= 0x20 + (key & 0x0F);
-		else if (data | 0x10) data |= 0x10 + (key>>4);
+		if (data & 0x20) data = 0x20 + (key & 0x0F);
+		else if (data & 0x10) data = 0x10 + (key>>4);
 	}
 
 	//DMA operation
