@@ -60,12 +60,12 @@ void Gameboy::showCartInfo() {
 void Gameboy::press(KEYS key) {
 	std::cout << "key pressed" << std::endl;
 	key_pressed[static_cast<int>(key)] = true;
-	memory->key |= 0 << static_cast<int>(key);
+	memory->key &= ~(1 << static_cast<int>(key));
 }
 void Gameboy::release(KEYS key){
 	std::cout << "key released" << std::endl;
 	key_pressed[static_cast<int>(key)] = false;
-	memory->key ^= 1 << static_cast<int>(key);
+	memory->key |= 1 << static_cast<int>(key);
 }
 
 void CPU::shift_operation_CB() {
@@ -1182,8 +1182,8 @@ void Memory::dma_operation(uint8_t src) {
 void Memory::write(uint16_t address, uint8_t data) {
 	//handle key input
 	if (address == 0xFF00) {	
-		if (data & 0x20) data = 0x20 + (key & 0x0F);
-		else if (data & 0x10) data = 0x10 + (key>>4);
+		if (data & 0x10) data = (key & 0x0F);
+		else if (data & 0x20) data = 0x0F & (key>>4);
 	}
 
 	//DMA operation

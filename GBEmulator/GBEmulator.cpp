@@ -67,7 +67,6 @@ void key_release(unsigned char key , int x , int y) {
 	case 'k': k = KEYS::DIRECTION_U; break;
 	case 'j': k = KEYS::DIRECTION_D; break;
 	default: return;
-
 	}
 	GB->release(k);
 }
