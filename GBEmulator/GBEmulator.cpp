@@ -89,7 +89,7 @@ static void timer(int value) {
 		GB->cpu.ready_for_render = false;
 		glutPostRedisplay();
 	}
-    glutTimerFunc(16, timer, 0);
+    glutTimerFunc(4, timer, 0);
 }
 
 int main(int argc, char *argv[]) 
