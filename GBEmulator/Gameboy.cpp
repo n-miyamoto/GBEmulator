@@ -203,10 +203,14 @@ void CPU::step()
 	if (ready_for_render) return;
 
 	//Handle interrupt
-	if (IME) {
+	if (IME|HALT) {
+		HALT = 0;
 		// V-blank interrupt
-		if (!!(memory->read(0xFF0F) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK)) &&
+		if (IME && 
+			!!(memory->read(0xFF0F) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK)) &&
 			!!(memory->read(0xFFFF) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK))) {
+			std::cout << "V-blank interrupt\n";
+			IME = 0;
 			memory->write(--SP, PC >> 8);
 			memory->write(--SP, PC & 0xFF);
 			PC = VBLANK_INTR_ADDR;
@@ -299,6 +303,9 @@ void CPU::step()
 		break;
 	case 0x0E:
 		RBC.b8[LO] = memory->read(PC++); //B
+		break;
+	case 0x10:
+		HALT = 1;
 		break;
 	case 0x11:
 		RDE.b8[LO] = memory->read(PC++); //B
@@ -440,6 +447,14 @@ void CPU::step()
 	case 0x28:
 		SN = (int8_t)memory->read(PC++);
 		if (FZ) PC += SN;
+		break;
+	case 0x29:
+		NNNN = RHL.b16 + RHL.b16;
+		FN = 0;
+		FH = (NNNN & 0x1000) ? 1 : 0;
+		FC = (NNNN & 0xFFFF0000) ? 1 : 0;
+		RHL.b8[HI] = (NNNN & 0x0000FF00) >> 8;
+		RHL.b8[LO] = (NNNN & 0x000000FF);
 		break;
 	case 0x2A:
 		RA = memory->read(RHL.b16);
@@ -716,6 +731,15 @@ void CPU::step()
 		FC = (NN & 0xFF00) ? 1 : 0;
 		RA = NN & 0xFF;
 		break;
+	case 0x8A:
+		N = RDE.b8[HI];
+		NN = RA + N + FC;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 0;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
 	case 0x8C:
 		N = RHL.b8[HI];
 		NN = RA + N + FC;
@@ -843,6 +867,11 @@ void CPU::step()
 		FC = (NN & 0xFF00) ? 1 : 0;
 		RA = NN & 0xFF;
 		break;
+	case 0xC7:
+		memory->write(--SP, PC >> 8);
+		memory->write(--SP, PC & 0xFF);
+		PC = 0x0000;
+		break;
 	case 0xC8:
 		if (FZ)
 		{
@@ -883,6 +912,11 @@ void CPU::step()
 	case 0xD1:
 		RDE.b8[LO] = memory->read(SP++);
 		RDE.b8[HI] = memory->read(SP++);
+		break;
+	case 0xD2:
+		NN =  memory->read(PC++);
+		NN |= memory->read(PC++) << 8;
+		if (!FC) PC = NN;
 		break;
 	case 0xD5:
 		memory->write(--SP,RDE.b8[HI]);
@@ -985,6 +1019,12 @@ void CPU::step()
 		FN = 0;
 		FH = 0;
 		FC = 0;
+		break;
+	case 0xF7:
+		memory->write(--SP, PC >> 8);
+		memory->write(--SP, PC & 0xFF);
+		PC = 0x0030;
+		break;
 		break;
 	case 0xF9:
 		SP = RHL.b16;
