@@ -9,6 +9,8 @@
 #define LCDC_Y_CORDINATE    (0xFF44)
 #define LCD_SCROLL_Y        (0xFF42)
 #define LCD_SCROLL_X        (0xFF43)
+#define INTERRUPT_FLAG		(0xFF0F)
+#define INTERRUPT_ENABLE	(0xFFFF)
 #define MAX_ADDRESS			(0x10000)
 
 #define BOOTROM_SIZE		(0x100)
@@ -30,7 +32,9 @@ typedef union registor {
 enum class INTERRUPTS{
 	V_BLANK = 0,
 	LCD_STAT,
-	TIMER
+	TIMER,
+	SERIAL,
+	KEYPAD
 };
 
 enum class KEYS {

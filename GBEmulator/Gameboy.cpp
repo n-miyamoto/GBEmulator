@@ -202,22 +202,37 @@ void CPU::step()
 {
 	if (ready_for_render) return;
 
-	//Handle interrupt
-	if (IME|HALT) {
+	if (!IME) HALT = 0;
+
+	// V-blank interrupt
+	if (IME&&
+		!!(memory->read(INTERRUPT_FLAG) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK)) &&
+		!!(memory->read(INTERRUPT_ENABLE) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK))) {
 		HALT = 0;
-		// V-blank interrupt
-		if (IME && 
-			!!(memory->read(0xFF0F) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK)) &&
-			!!(memory->read(0xFFFF) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK))) {
-			std::cout << "V-blank interrupt\n";
-			IME = 0;
-			memory->write(--SP, PC >> 8);
-			memory->write(--SP, PC & 0xFF);
-			PC = VBLANK_INTR_ADDR;
-			uint8_t IF = memory->read(0xFF0F) ^ 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK);
-			memory->write(0xFF0F, IF);
-		}
+		std::cout << "V-blank interrupt\n";
+		IME = 0;
+		memory->write(--SP, PC >> 8);
+		memory->write(--SP, PC & 0xFF);
+		PC = VBLANK_INTR_ADDR;
+		uint8_t IF = memory->read(INTERRUPT_FLAG) ^ 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK);
+		memory->write(INTERRUPT_FLAG, IF);
 	}
+
+	// keypad interrupt
+	if (IME&&
+		!!(memory->read(INTERRUPT_FLAG) & 1 << static_cast<uint8_t>(INTERRUPTS::KEYPAD)) &&
+		!!(memory->read(INTERRUPT_ENABLE) & 1 << static_cast<uint8_t>(INTERRUPTS::KEYPAD))) {
+		HALT = 0;
+		std::cout << "keypad interrupt\n";
+		IME = 0;
+		memory->write(--SP, PC >> 8);
+		memory->write(--SP, PC & 0xFF);
+		PC = VBLANK_INTR_ADDR;
+		uint8_t IF = memory->read(INTERRUPT_FLAG) ^ 1 << static_cast<uint8_t>(INTERRUPTS::KEYPAD);
+		memory->write(INTERRUPT_FLAG, IF);
+	}
+
+
 
 	if (PC == 0x100 && memory->is_booting) {
 		std::cout << "finish boot seqence\n";
@@ -305,6 +320,7 @@ void CPU::step()
 		RBC.b8[LO] = memory->read(PC++); //B
 		break;
 	case 0x10:
+		std::cout << "HALT";
 		HALT = 1;
 		break;
 	case 0x11:
@@ -487,6 +503,13 @@ void CPU::step()
 		RA = RA ^ 0xFF;
 		FN = 1;
 		FH = 1;
+		break;
+	case 0x30: // JP NC, imm
+		SN = (int8_t)memory->read(PC++);
+		if (!FC)
+		{
+			PC += SN;
+		}
 		break;
 	case 0x31:
 		SP = memory->read(PC++);
@@ -1042,6 +1065,7 @@ void CPU::step()
 		RA = memory->read(SP++);
 		break;
 	case 0xF3:
+		std::cout << "disable IME\n";
 		IME = 0;
 		break;
 	case 0xF5:
