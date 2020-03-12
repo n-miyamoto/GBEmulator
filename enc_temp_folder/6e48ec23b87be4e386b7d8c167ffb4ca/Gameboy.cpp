@@ -773,35 +773,35 @@ void CPU::step()
 		FH = 1;
 		FC = 0;
 		break;
-	case 0xA2:
+	case 0xA2: // AND D
 		RA = RA & RDE.b8[HI];
 		FZ = (RA == 0x00);
 		FN = 0;
 		FH = 1;
 		FC = 0;
 		break;
-	case 0xA3:
+	case 0xA3: // AND E
 		RA = RA & RDE.b8[LO];
 		FZ = (RA == 0x00);
 		FN = 0;
 		FH = 1;
 		FC = 0;
 		break;
-	case 0xA4:
+	case 0xA4: // AND H
 		RA = RA & RHL.b8[HI];
 		FZ = (RA == 0x00);
 		FN = 0;
 		FH = 1;
 		FC = 0;
 		break;
-	case 0xA5:
+	case 0xA5: // AND L
 		RA = RA & RHL.b8[LO];
 		FZ = (RA == 0x00);
 		FN = 0;
 		FH = 1;
 		FC = 0;
 		break;
-	case 0xA6:
+	case 0xA6: // AND (HL)
 		RA = RA & memory->read(RHL.b16);
 		FZ = (RA == 0x00);
 		FN = 0;
