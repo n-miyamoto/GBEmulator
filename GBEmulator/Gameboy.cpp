@@ -822,6 +822,89 @@ void CPU::step()
 		FC = (NN & 0xFF00) ? 1 : 0;
 		RA = NN & 0xFF;
 		break;
+	case 0x97:
+		RA = 0x00;
+		FZ = 1;
+		FN = 1;
+		FH = 0;
+		FC = 0;
+		break;
+	case 0x98:
+		N = RBC.b8[HI];
+		NN = RA - N - FC;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x99:
+		N = RBC.b8[LO];
+		NN = RA - N - FC;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x9A:
+		N = RDE.b8[HI];
+		NN = RA - N - FC;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x9B:
+		N = RDE.b8[LO];
+		NN = RA - N - FC;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x9C:
+		N = RHL.b8[HI];
+		NN = RA - N - FC;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x9D:
+		N = RHL.b8[LO];
+		NN = RA - N - FC;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x9E:
+		N = memory->read(RHL.b16);
+		NN = RA - N - FC;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x9F:
+		RA = FC ? 0xFF : 0x00;
+		FZ = FC ? 0x00 : 0x01;
+		FN = 1;
+		FH = FC;
+		break;
+	case 0xA0:
+		RA = RA & RBC.b8[HI];
+		FZ = (RA == 0x00);
+		FN = 0;
+		FH = 1;
+		FC = 0;
+		break;
 	case 0xA1:
 		RA = RA & RBC.b8[LO];
 		FZ = (RA == 0x00);
@@ -1246,6 +1329,14 @@ void CPU::step()
 
 	cycle_count += OP_CYCLES[op];
 	lcd_count += OP_CYCLES[op];
+	div_count += OP_CYCLES[op];
+
+	//increment div counter
+	if (div_count > CLOCK_FREQUENCY / DIV_COUNTER_INCREMENT_FREQUENCY) {
+		div_count = 0;
+		memory->write(DIV_REGISTER, memory->read(DIV_REGISTER)+1);
+	}
+
 	if (lcd_count > LCD_LINE_CYCLES) {
 		memory->write( LCDC_Y_CORDINATE , (memory->read(LCDC_Y_CORDINATE) + 1) % LCD_VERT_LINES);
 		lcd_count -= LCD_LINE_CYCLES;

@@ -10,6 +10,7 @@
 #define LCDC_Y_CORDINATE    (0xFF44)
 #define LCD_SCROLL_Y        (0xFF42)
 #define LCD_SCROLL_X        (0xFF43)
+#define DIV_REGISTER		(0xFF04)
 #define INTERRUPT_FLAG		(0xFF0F)
 #define INTERRUPT_ENABLE	(0xFFFF)
 #define MAX_ADDRESS			(0x10000)
@@ -24,6 +25,9 @@
 
 #define FRAME_WIDTH  (160);
 #define FRAME_HEIGHT (144);
+
+#define CLOCK_FREQUENCY (4000000)
+#define DIV_COUNTER_INCREMENT_FREQUENCY (16384)
 
 typedef union registor {
 	uint16_t b16;
@@ -86,6 +90,7 @@ private:
 	uint8_t HALT = { 0 };
 	uint64_t cycle_count = 0;
 	uint32_t lcd_count = 0;
+	uint32_t div_count = 0;
 public:
 	CPU();
 	void set_memmap(Memory* mem);
