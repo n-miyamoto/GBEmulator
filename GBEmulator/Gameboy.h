@@ -2,6 +2,7 @@
 #include <iostream>
 
 #define VBLANK_INTR_ADDR    (0x0040)
+#define KEYPAD_INTR_ADDR    (0x0060)
 #define ROM_TITLE_START		(0x0134)
 #define ROM_TITLE_END		(0x0143)
 #define ROM_RAM_SIZE		(0x0149)
