@@ -23,8 +23,8 @@
 #define HI (1)
 #define LO (0)
 
-#define FRAME_WIDTH  (160);
-#define FRAME_HEIGHT (144);
+#define FRAME_WIDTH  (160)
+#define FRAME_HEIGHT (144)
 
 #define CLOCK_FREQUENCY (4000000)
 #define DIV_COUNTER_INCREMENT_FREQUENCY (16384)

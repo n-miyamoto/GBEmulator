@@ -1,19 +1,12 @@
-﻿// GBEmulator.cpp : このファイルには 'main' 関数が含まれています。プログラム実行の開始と終了がそこで行われます。
-//
-
-#include <iostream>
+﻿#include <iostream>
 #include <algorithm>
 #include <random>
 #include <GL/glut.h>
 #include "Gameboy.h"
 #pragma warning(disable: 4996) 
 
-#define WIDTH 160
-#define HEIGHT 144
-#define IMAGE_SIZE_IN_BYTE (4 * WIDTH * HEIGHT)
+#define IMAGE_SIZE_IN_BYTE (4 * FRAME_WIDTH * FRAME_HEIGHT)
 
-
-int g = 12345;
 unsigned char* bitmap;
 Gameboy* GB;
 
@@ -21,12 +14,11 @@ Gameboy* GB;
 void create_bitmap(unsigned char* bitmap) {
 	uint8_t val;
 
-	for (int i = 0; i < HEIGHT; i++) {
-		for (int j = 0; j < WIDTH; j++) {
-			int offset = (HEIGHT-i-1) * WIDTH + j;
-			val = 255 - GB->gpu.frame_buffer[i*WIDTH+j]*64;
-			//val = GB->gpu.total_frame[offset]<<8;
-            bitmap[offset * 4 + 0] = val;
+	for (int i = 0; i < FRAME_HEIGHT; i++) {
+		for (int j = 0; j < FRAME_WIDTH; j++) {
+			int offset = (FRAME_HEIGHT-i-1) * FRAME_WIDTH + j;
+			val = 255 - GB->gpu.frame_buffer[i*FRAME_WIDTH+j]*64;
+			bitmap[offset * 4 + 0] = val;
 			bitmap[offset * 4 + 1] = val;
 			bitmap[offset * 4 + 2] = val;
 			bitmap[offset * 4 + 3] = 255;
@@ -55,6 +47,7 @@ void key_press(unsigned char key, int x, int y) {
 	}
 	GB->press(k);
 }
+
 void key_release(unsigned char key , int x , int y) {
 	KEYS k;
 	switch (key) {
@@ -76,7 +69,7 @@ void key_release(unsigned char key , int x , int y) {
 static void draw() {
   create_bitmap(bitmap);
   glClear(GL_COLOR_BUFFER_BIT);
-  glDrawPixels(WIDTH, HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, bitmap);
+  glDrawPixels(FRAME_WIDTH, FRAME_HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, bitmap);
   glFlush();
 }
 
@@ -88,7 +81,7 @@ static void timer(int value) {
 		GB->cpu.ready_for_render = false;
 		glutPostRedisplay();
 	}
-    glutTimerFunc(4, timer, 0);
+    glutTimerFunc(16, timer, 0);
 }
 
 int main(int argc, char *argv[]) 
@@ -96,7 +89,7 @@ int main(int argc, char *argv[])
 	//load cart
 	FILE* fp;
 	FILE* br;
-	const char* romfile = "rsrc/Tetris.gb";
+	const char *romfile = "rsrc/Tetris.gb";
 	const char *boot_rom= "rsrc/DMG_ROM.bin";
 	fp = fopen(romfile, "rb");
 	if (fp == NULL) {
@@ -140,7 +133,7 @@ int main(int argc, char *argv[])
 
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA);
-	glutInitWindowSize(WIDTH, HEIGHT);
+	glutInitWindowSize(FRAME_WIDTH, FRAME_HEIGHT);
 	glutCreateWindow("bitmap");
 	glutDisplayFunc(draw);
 	glutIgnoreKeyRepeat(GL_TRUE);	

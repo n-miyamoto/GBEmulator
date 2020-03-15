@@ -73,7 +73,7 @@ void CPU::shift_operation_CB() {
 	uint8_t R  = (op & 0x7);
 	uint8_t B  = (op >> 3) & 0x7;
 	uint8_t D  = (op >> 3) & 0x1;
-	uint8_t val;
+	uint8_t val = 0;
 
 	// retrieve byte to manipulate
 	switch (R)
@@ -1501,7 +1501,7 @@ void Memory::dma_operation(uint8_t src) {
 
 void Memory::write(uint16_t address, uint8_t data) {
 
-	if (address >= 0 & address < 0x8000) {
+	if (address >= 0 && address < 0x8000) {
 		std::cout << "unable to write ROM\n";
 		return;
 		while (1);
