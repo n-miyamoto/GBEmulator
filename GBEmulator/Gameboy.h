@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <memory>
 
 #define VBLANK_INTR_ADDR    (0x0040)
 #define KEYPAD_INTR_ADDR    (0x0060)
