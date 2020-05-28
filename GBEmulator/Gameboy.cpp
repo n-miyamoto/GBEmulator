@@ -1444,7 +1444,7 @@ void GPU::draw_frame() {
 	for (int y = 0; y < frame_height; y++) {
 		for (int x = 0; x < frame_width; x++) {
 			if (scroll_x + x < frame_width && scroll_y + y < frame_height) {
-				frame_buffer[static_cast<size_t>(y) * frame_width + x] = total_frame[static_cast<size_t>(scroll_y + y) * 256 + (scroll_x + x)];
+				frame_buffer[static_cast<size_t>(y) * frame_width + x] = total_frame[(static_cast<size_t>(scroll_y) + y) * 256 + (static_cast<size_t>(scroll_x) + x)];
 			}
 			else {
 				frame_buffer[static_cast<size_t>(y) * frame_width + x] = 0;
