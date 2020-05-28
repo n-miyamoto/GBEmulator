@@ -24,21 +24,16 @@ uint8_t OP_CYCLES[0x100] = {
 };
 
 
-Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) :memory(new Memory(rom,size,boot_rom)){
+Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) :memory(std::make_unique<Memory>(rom,size,boot_rom)){
 	isRendered = false;
 	rom_ptr = rom;
 	rom_size = size;
 	uint32_t ram_sizes[] = { 0x00, 0x800, 0x2000, 0x8000, 0x20000 };
-	save_size = ram_sizes[rom[ROM_RAM_SIZE]];
-	save_ptr = (uint8_t*)malloc(save_size);
 
 	cpu.set_memmap(memory.get());
 	gpu.set_memmap(memory.get());
 }
 
-Gameboy::~Gameboy() {
-	free(memory_map);
-}
 
 void Gameboy::stepCPU(void) {
 	isRendered = true;
@@ -193,8 +188,6 @@ void CPU::shift_operation_CB() {
 	}
 }
 
-CPU::CPU(){
-}
 
 void CPU::set_memmap(Memory *mem) {
 	memory = mem;
@@ -235,7 +228,6 @@ void CPU::step()
 		uint8_t IF = memory->read(INTERRUPT_FLAG) ^ 1 << static_cast<uint8_t>(INTERRUPTS::KEYPAD);
 		memory->write(INTERRUPT_FLAG, IF);
 	}
-
 
 
 	if (PC == 0x100 && memory->is_booting) {

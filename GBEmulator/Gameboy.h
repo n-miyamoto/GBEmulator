@@ -73,7 +73,7 @@ class CPU
 {
 private:
 	void shift_operation_CB();
-	Memory* memory;
+	Memory* memory = nullptr;
 	//general registors
 	uint8_t RA = 0;
 	reg RBC = { 0 };
@@ -93,7 +93,6 @@ private:
 	uint32_t lcd_count = 0;
 	uint32_t div_count = 0;
 public:
-	CPU();
 	void set_memmap(Memory* mem);
 	void step();
 	void set_interrupt_flag(INTERRUPTS intrpt);
@@ -104,7 +103,7 @@ public:
 
 class GPU {
 private:
-	Memory* memory;
+	Memory* memory=nullptr;
 	uint8_t frame_width = FRAME_WIDTH;
 	uint8_t frame_height = FRAME_HEIGHT;
 	std::unique_ptr<uint8_t[]> total_frame = nullptr;
@@ -119,18 +118,14 @@ class Gameboy
 {
 private:
 	std::unique_ptr<Memory> memory;
-	uint8_t* memory_map = nullptr;
 	uint8_t* rom_ptr = nullptr;
 	size_t  rom_size = 0; 
-	uint8_t* save_ptr = nullptr;
-	size_t save_size = 0;
 	bool key_pressed[static_cast<int>(KEYS::KEY_NUMS)] = {0};
 
 public:
 	CPU cpu;
 	GPU gpu;
 	Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom);
-	~Gameboy();
 	void showTitle();
 	void showCartInfo();
 	void stepCPU();
