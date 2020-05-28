@@ -1347,19 +1347,19 @@ void CPU::set_interrupt_flag(INTERRUPTS intrpt) {
 
 void CPU::dump_reg() {
 	int op = memory->read(PC);
-	std::cout << std::hex << "PC " << (int)PC << " " << 
-		         std::hex << "OP " <<(int)op << " " << 
-				 std::hex << "RA " <<(int)RA << " " <<
-				 std::hex << "RB " <<(int)RBC.b8[HI] << " " <<
-				 std::hex << "RC " <<(int)RBC.b8[LO] << " " <<
-				 std::hex << "RD " <<(int)RDE.b8[HI] << " " <<
-				 std::hex << "RE " <<(int)RDE.b8[LO] << " " <<
-				 std::hex << "RH " <<(int)RHL.b8[HI] << " " <<
-				 std::hex << "RL " <<(int)RHL.b8[LO] << " " << std::endl;
+	std::cout << std::hex << "PC " << (int)PC << " " <<
+		         std::hex << "OP " << (int)op << " " << 
+				 std::hex << "RA " << (int)RA << " " <<
+				 std::hex << "RB " << (int)RBC.b8[HI] << " " <<
+				 std::hex << "RC " << (int)RBC.b8[LO] << " " <<
+				 std::hex << "RD " << (int)RDE.b8[HI] << " " <<
+				 std::hex << "RE " << (int)RDE.b8[LO] << " " <<
+				 std::hex << "RH " << (int)RHL.b8[HI] << " " <<
+				 std::hex << "RL " << (int)RHL.b8[LO] << " " << std::endl;
 }
 
 GPU::GPU() {
-	frame_buffer= std::make_unique<uint8_t[]>(frame_height*frame_width );
+	frame_buffer= std::make_unique<uint8_t[]>(static_cast<size_t>(frame_height)*frame_width );
 	total_frame = std::make_unique<uint8_t[]>(256 * 256);
 }
 
@@ -1401,7 +1401,7 @@ void GPU::draw_frame() {
 						px += ((b1 >> (7 - l)) & 0x01)<<1;
 						auto y = 8 * i + k;
 						auto x = 8 * j + l;
-						total_frame[y * 256 + x] = px;
+						total_frame[static_cast<size_t>(y) * 256 + x] = px;
 					}
 				}
 			}
@@ -1430,7 +1430,7 @@ void GPU::draw_frame() {
 						px += ((b1 >> (7 - l)) & 0x01) << 1;
 						auto y = 8 * i + k;
 						auto x = 8 * j + l;
-						if(px!=0) total_frame[y * 256 + x] = px;
+						if(px!=0) total_frame[static_cast<size_t>(y) * 256 + x] = px;
 					}
 				}
 			}
@@ -1444,10 +1444,10 @@ void GPU::draw_frame() {
 	for (int y = 0; y < frame_height; y++) {
 		for (int x = 0; x < frame_width; x++) {
 			if (scroll_x + x < frame_width && scroll_y + y < frame_height) {
-				frame_buffer[y * frame_width + x] = total_frame[(scroll_y + y) * 256 + (scroll_x + x)];
+				frame_buffer[static_cast<size_t>(y) * frame_width + x] = total_frame[static_cast<size_t>(scroll_y + y) * 256 + (scroll_x + x)];
 			}
 			else {
-				frame_buffer[y * frame_width + x] = 0;
+				frame_buffer[static_cast<size_t>(y) * frame_width + x] = 0;
 			}
 		}
 	}
@@ -1472,7 +1472,7 @@ void GPU::draw_frame() {
 					px += ((b1 >> (7 - l)) & 0x01) << 1;
 					auto x = left + l;
 					auto y = top + k;
-					if (px != 0) frame_buffer[y * frame_width + x] = px;
+					if (px != 0) frame_buffer[static_cast<size_t>(y) * frame_width + x] = px;
 				}
 			}
 
