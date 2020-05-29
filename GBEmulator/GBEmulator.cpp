@@ -1,4 +1,5 @@
 ﻿#include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <random>
 #include <GL/glut.h>
@@ -117,17 +118,37 @@ static void timer(int value) {
 
 int main(int argc, char *argv[]) 
 {
+	const char* boot_rom = "rsrc/DMG_ROM.bin";
+	const char* romfile = "rsrc/Tetris.gb";
+
+	// load cart romfile
+	std::ifstream rom_file(romfile, std::ios_base::in | std::ios_base::binary);
+	if (rom_file.fail()) {
+		std::cerr << "Failed to open file." << std::endl;
+		return -1;
+	}
+	// copy rom size
+	rom_file.seekg(0, std::ios::end);
+	size_t rom_size = rom_file.tellg();
+	rom_file.clear();
+	auto rom = std::make_unique<uint8_t[]>(rom_size);
+	if (rom == nullptr) {
+		std::cout << "malloc failed" << std::endl;
+		return -1;
+	}
+	rom_file.read((char*)rom.get(), rom_size);
+
 	//load cart
-	FILE* fp;
+	//FILE* fp;
 	FILE* br;
-	const char *romfile = "rsrc/Tetris.gb";
-	const char *boot_rom= "rsrc/DMG_ROM.bin";
-	fp = fopen(romfile, "rb");
+	//const char *romfile = "rsrc/Tetris.gb";
+	//const char *boot_rom= "rsrc/DMG_ROM.bin";
+	br = fopen(boot_rom, "rb");
+	/*fp = fopen(romfile, "rb");
 	if (fp == NULL) {
 		std::cout << "no cart" << std::endl;
 		return -1;
 	}
-	br = fopen(boot_rom, "rb");
 	if (br == NULL) {
 		std::cout << "no rom file" << std::endl;
 		return -1;
@@ -142,7 +163,7 @@ int main(int argc, char *argv[])
 	}
 	fread(rom.get(), sizeof(uint8_t), rom_size, fp);
 	fclose(fp);
-
+*/
 	fseek(br, 0, SEEK_END);
 	size_t boot_rom_size = ftell(br);
 	rewind(br);
