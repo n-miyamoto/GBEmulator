@@ -4,7 +4,6 @@
 #include <random>
 #include <GL/glut.h>
 #include "Gameboy.h"
-#pragma warning(disable: 4996) 
 
 #define IMAGE_SIZE_IN_BYTE (3 * FRAME_WIDTH * FRAME_HEIGHT)
 
@@ -25,16 +24,9 @@ int display_height = FRAME_HEIGHT * modifier;
 
 //Create bitmap
 void create_bitmap(unsigned char* bitmap) {
-	uint8_t val;
-
-	for (int i = 0; i < FRAME_HEIGHT; i++) {
-		for (int j = 0; j < FRAME_WIDTH; j++) {
-			int offset = i * FRAME_WIDTH + j;
-			val = 255 - GB->gpu.frame_buffer[static_cast<size_t>(i)*FRAME_WIDTH+j]*64;
-			bitmap[offset * 3 + 0] = val;
-			bitmap[offset * 3 + 1] = val;
-			bitmap[offset * 3 + 2] = val;
-		}
+	for (int i = 0; i < FRAME_HEIGHT * FRAME_WIDTH; i++) {
+		for (int j=0;j<3;j++) 
+			bitmap[i * 3 + j] = 255 - GB->gpu.frame_buffer[i] * 64;
 	}
 }
 
@@ -43,39 +35,33 @@ void idle(void) {
 	GB->cpu.step();
 }
 
+static KEYS char_to_key(const char c) {
+	KEYS k;
+	switch (c) {
+	case 'a': k = KEYS::BUTTON_A; break;
+	case 's': k = KEYS::BUTTON_B; break;
+	case 'b': k = KEYS::BUTTON_SELECT; break;
+	case 'n': k = KEYS::BUTTON_START; break;
+	case 'l': k = KEYS::DIRECTION_R; break;
+	case 'h': k = KEYS::DIRECTION_L; break;
+	case 'k': k = KEYS::DIRECTION_U; break;
+	case 'j': k = KEYS::DIRECTION_D; break;
+	default : k = KEYS::NOT_KEY;
+	}
+	return k;
+}
+
 //keyboard event callback
 void key_press(unsigned char key, int x, int y) {
-	KEYS k;
-	switch (key) {
-	case 'a': k = KEYS::BUTTON_A; break;
-	case 's': k = KEYS::BUTTON_B; break;
-	case 'b': k = KEYS::BUTTON_SELECT; break;
-	case 'n': k = KEYS::BUTTON_START; break;
-	case 'l': k = KEYS::DIRECTION_R; break;
-	case 'h': k = KEYS::DIRECTION_L; break;
-	case 'k': k = KEYS::DIRECTION_U; break;
-	case 'j': k = KEYS::DIRECTION_D; break;
-	default: return;
-	}
+	KEYS k = char_to_key(key);
+	if (k == KEYS::NOT_KEY) return;
 	GB->press(k);
 }
-
 void key_release(unsigned char key , int x , int y) {
-	KEYS k;
-	switch (key) {
-	case 'a': k = KEYS::BUTTON_A; break;
-	case 's': k = KEYS::BUTTON_B; break;
-	case 'b': k = KEYS::BUTTON_SELECT; break;
-	case 'n': k = KEYS::BUTTON_START; break;
-	case 'l': k = KEYS::DIRECTION_R; break;
-	case 'h': k = KEYS::DIRECTION_L; break;
-	case 'k': k = KEYS::DIRECTION_U; break;
-	case 'j': k = KEYS::DIRECTION_D; break;
-	default: return;
-	}
+	KEYS k = char_to_key(key);
+	if (k == KEYS::NOT_KEY) return;
 	GB->release(k);
 }
-
 
 //Rasterize callback
 static void draw() {
@@ -88,7 +74,6 @@ static void draw() {
         glTexCoord2d(1.0, 1.0); 	glVertex2d(display_width, display_height);
         glTexCoord2d(0.0, 1.0); 	glVertex2d(0.0,			  display_height);
     glEnd();
-
 	glutSwapBuffers();  
 }
 

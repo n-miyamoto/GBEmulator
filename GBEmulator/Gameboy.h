@@ -54,7 +54,8 @@ enum class KEYS {
 	DIRECTION_L,
 	DIRECTION_U,
 	DIRECTION_D,
-	KEY_NUMS
+	KEY_NUMS,
+	NOT_KEY
 };
 
 class Memory
