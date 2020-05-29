@@ -118,65 +118,54 @@ static void timer(int value) {
 
 int main(int argc, char *argv[]) 
 {
-	const char* boot_rom = "rsrc/DMG_ROM.bin";
-	const char* romfile = "rsrc/Tetris.gb";
+	std::unique_ptr<uint8_t[]> rom;
+	std::size_t rom_size;
+	{
+		// load cart romfile
+		const char* romfile = "rsrc/Tetris.gb";
+		std::ifstream rom_file(romfile, std::ios::in | std::ios::binary);
+		if (rom_file.fail()) {
+			std::cerr << "Failed to open file." << std::endl;
+			return -1;
+		}
+		// read rom size
+		rom_file.seekg(0, rom_file.end);
+		rom_size = rom_file.tellg();
+		rom_file.seekg(0, rom_file.beg);
+		// copy cart to buf
+		rom = std::make_unique<uint8_t[]>(rom_size);
+		if (rom == nullptr) {
+			std::cout << "malloc failed" << std::endl;
+			return -1;
+		}
+		rom_file.read(reinterpret_cast<char*>(rom.get()), rom_size);
+	}
 
-	// load cart romfile
-	std::ifstream rom_file(romfile, std::ios_base::in | std::ios_base::binary);
-	if (rom_file.fail()) {
-		std::cerr << "Failed to open file." << std::endl;
-		return -1;
+	std::unique_ptr<uint8_t[]> boot_rom;
+	std::size_t boot_rom_size;
+	{
+		// load cart romfile
+		const char* boot_rom_path = "rsrc/DMG_ROM.bin";
+		std::ifstream rom_file(boot_rom_path, std::ios::in | std::ios::binary);
+		if (rom_file.fail()) {
+			std::cerr << "Failed to open file." << std::endl;
+			return -1;
+		}
+		// read rom size
+		rom_file.seekg(0, rom_file.end);
+		boot_rom_size = rom_file.tellg();
+		rom_file.seekg(0, rom_file.beg);
+		// copy cart to buf
+		boot_rom = std::make_unique<uint8_t[]>(boot_rom_size);
+		if (rom == nullptr) {
+			std::cout << "malloc failed" << std::endl;
+			return -1;
+		}
+		rom_file.read(reinterpret_cast<char*>(boot_rom.get()), boot_rom_size);
 	}
-	// copy rom size
-	rom_file.seekg(0, std::ios::end);
-	size_t rom_size = rom_file.tellg();
-	rom_file.clear();
-	auto rom = std::make_unique<uint8_t[]>(rom_size);
-	if (rom == nullptr) {
-		std::cout << "malloc failed" << std::endl;
-		return -1;
-	}
-	rom_file.read((char*)rom.get(), rom_size);
-
-	//load cart
-	//FILE* fp;
-	FILE* br;
-	//const char *romfile = "rsrc/Tetris.gb";
-	//const char *boot_rom= "rsrc/DMG_ROM.bin";
-	br = fopen(boot_rom, "rb");
-	/*fp = fopen(romfile, "rb");
-	if (fp == NULL) {
-		std::cout << "no cart" << std::endl;
-		return -1;
-	}
-	if (br == NULL) {
-		std::cout << "no rom file" << std::endl;
-		return -1;
-	}
-	fseek(fp, 0, SEEK_END);
-	size_t rom_size = ftell(fp);
-	rewind(fp);
-	auto rom = std::make_unique<uint8_t[]>(rom_size);
-	if (rom == nullptr) {
-		std::cout << "malloc failed" << std::endl;
-		return -1;
-	}
-	fread(rom.get(), sizeof(uint8_t), rom_size, fp);
-	fclose(fp);
-*/
-	fseek(br, 0, SEEK_END);
-	size_t boot_rom_size = ftell(br);
-	rewind(br);
-	auto bootrom = std::make_unique<uint8_t[]>(boot_rom_size);
-	if (bootrom == nullptr) {
-		std::cout << "malloc failed" << std::endl;
-		return -1;
-	}
-	fread(bootrom.get(), sizeof(uint8_t), boot_rom_size, br);
-	fclose(br);
 
 	//init GameBoy
-	Gameboy gb(rom.get(), rom_size, bootrom.get());
+	Gameboy gb(rom.get(), rom_size, boot_rom.get());
 	gb.showCartInfo();
 	GB = &gb;
 
