@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
 
 	//init GameBoy
 	Gameboy gb(rom.get(), rom_size, boot_rom.get());
-	gb.showCartInfo();
+	gb.show_cart_info();
 	GB = &gb;
 
 	bitmap = std::make_unique<uint8_t[]>(IMAGE_SIZE_IN_BYTE);

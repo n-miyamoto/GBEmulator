@@ -7,12 +7,14 @@
 #define ROM_TITLE_START		(0x0134)
 #define ROM_TITLE_END		(0x0143)
 #define ROM_RAM_SIZE		(0x0149)
+#define DIV_REGISTER		(0xFF04)
+#define KEY_INPUT_ADDRES	(0xFF00)
+#define INTERRUPT_FLAG		(0xFF0F)
 #define LCDC			    (0xFF40)
 #define LCDC_Y_CORDINATE    (0xFF44)
 #define LCD_SCROLL_Y        (0xFF42)
 #define LCD_SCROLL_X        (0xFF43)
-#define DIV_REGISTER		(0xFF04)
-#define INTERRUPT_FLAG		(0xFF0F)
+#define DMA_OP_ADDRESS		(0xFF46)
 #define INTERRUPT_ENABLE	(0xFFFF)
 #define MAX_ADDRESS			(0x10000)
 
@@ -119,17 +121,16 @@ class Gameboy
 private:
 	std::unique_ptr<Memory> memory;
 	uint8_t* rom_ptr = nullptr;
-	size_t  rom_size = 0; 
+	size_t rom_size = 0; 
 	bool key_pressed[static_cast<int>(KEYS::KEY_NUMS)] = {0};
 
 public:
 	CPU cpu;
 	GPU gpu;
 	Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom);
-	void showTitle();
-	void showCartInfo();
-	void stepCPU();
-	bool isRendered;
+	void show_title();
+	void show_cart_info();
+	bool isRendered = false;
 	void press(KEYS key);
 	void release(KEYS key);
 };

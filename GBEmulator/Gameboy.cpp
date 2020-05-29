@@ -24,22 +24,17 @@ uint8_t OP_CYCLES[0x100] = {
 };
 
 
-Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) :memory(std::make_unique<Memory>(rom,size,boot_rom)){
-	isRendered = false;
-	rom_ptr = rom;
-	rom_size = size;
-	uint32_t ram_sizes[] = { 0x00, 0x800, 0x2000, 0x8000, 0x20000 };
-
+Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) 
+	:memory(std::make_unique<Memory>(rom,size,boot_rom)), 
+	rom_ptr(rom), 
+	rom_size(size)
+{
+	//uint32_t ram_sizes[] = { 0x00, 0x800, 0x2000, 0x8000, 0x20000 };
 	cpu.set_memmap(memory.get());
 	gpu.set_memmap(memory.get());
 }
 
-
-void Gameboy::stepCPU(void) {
-	isRendered = true;
-}
-
-void Gameboy::showTitle() {
+void Gameboy::show_title() {
 	char str[ROM_TITLE_END - ROM_TITLE_START + 1];
 	str[ROM_TITLE_END - ROM_TITLE_START] = -1;
 	for (int a = ROM_TITLE_START; a < ROM_TITLE_END; a++) {
@@ -48,9 +43,9 @@ void Gameboy::showTitle() {
 	std::cout << str << std::endl;
 }
 
-void Gameboy::showCartInfo() {
+void Gameboy::show_cart_info() {
 	std::cout << "TITLE: ";
-	showTitle();
+	show_title();
 	std::cout << "ROM SIZE: " << rom_size << std::endl;
 }
 
@@ -229,13 +224,11 @@ void CPU::step()
 		memory->write(INTERRUPT_FLAG, IF);
 	}
 
-
 	if (PC == 0x100 && memory->is_booting) {
 		std::cout << "finish boot seqence\n";
 		memory->is_booting = false;
 	}
 
-	//dump_reg();
 	uint16_t tmp = PC;
 	uint8_t op = memory->read(PC++);
 	uint16_t NN;
@@ -1215,6 +1208,15 @@ void CPU::step()
 		PC = NN;
 		IME = 1;
 		break;
+	case 0xDE:
+		N = memory->read(PC++);
+		NN = RA - N - FC;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
 	case 0xE0:
 		memory->write((0xFF00 | memory->read(PC++)),  RA);
 		break;
@@ -1335,14 +1337,13 @@ void CPU::step()
 		memory->write( LCDC_Y_CORDINATE , (memory->read(LCDC_Y_CORDINATE) + 1) % LCD_VERT_LINES);
 		lcd_count -= LCD_LINE_CYCLES;
 
-		if (memory->read(LCDC_Y_CORDINATE) == 144) {
+		if (memory->read(LCDC_Y_CORDINATE) == FRAME_HEIGHT) {
 			ready_for_render = true;
 		}
 	}
-
 }
 void CPU::set_interrupt_flag(INTERRUPTS intrpt) {
-	memory->write( 0xFF0F , memory->read(0xFF0F) | 1 << static_cast<uint8_t>(intrpt) );
+	memory->write( INTERRUPT_FLAG , memory->read(INTERRUPT_FLAG) | 1 << static_cast<uint8_t>(intrpt) );
 }
 
 void CPU::dump_reg() {
@@ -1437,7 +1438,6 @@ void GPU::draw_frame() {
 		}
 	}
 
-
 	auto scroll_y = memory->read(LCD_SCROLL_Y);
 	auto scroll_x = memory->read(LCD_SCROLL_X);
 
@@ -1475,7 +1475,6 @@ void GPU::draw_frame() {
 					if (px != 0) frame_buffer[static_cast<size_t>(y) * frame_width + x] = px;
 				}
 			}
-
 		}
 	}	
 }
@@ -1484,7 +1483,7 @@ void GPU::draw_frame() {
 Memory::Memory(uint8_t* cart, size_t rom_size, uint8_t* bootrom) {
 	std::memset(map, 0, MAX_ADDRESS);
 	std::memcpy(map, cart, rom_size);
-	std::memcpy(boot_rom, bootrom, 0x100);
+	std::memcpy(boot_rom, bootrom, BOOTROM_SIZE);
 }
 
 void Memory::dma_operation(uint8_t src) {
@@ -1502,13 +1501,13 @@ void Memory::write(uint16_t address, uint8_t data) {
 	}
 
 	//handle key input
-	if (address == 0xFF00) {	
+	if (address == KEY_INPUT_ADDRES) {	
 		if (data & 0x10) data = (key & 0x0F);
 		else if (data & 0x20) data = 0x0F & (key>>4);
 	}
 
 	//DMA operation
-	if (address == 0xFF46) {
+	if (address == DMA_OP_ADDRESS) {
 		dma_operation(data);
 	}
 
@@ -1517,10 +1516,11 @@ void Memory::write(uint16_t address, uint8_t data) {
 }
 uint8_t Memory::read(uint16_t address) {
 
-	if (is_booting && address<0x100 ) {
-		//booting read from boot rom
+	if (is_booting && address < BOOTROM_SIZE ) {
+		//booting. read from boot rom
 		return boot_rom[address];
 	}
+	//Default read
 	return map[address];
 }
 
