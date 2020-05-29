@@ -35,7 +35,8 @@ void idle(void) {
 	GB->cpu.step();
 }
 
-static KEYS char_to_key(const char c) {
+static KEYS char_to_key(const char c) 
+{
 	KEYS k;
 	switch (c) {
 	case 'a': k = KEYS::BUTTON_A; break;
@@ -52,12 +53,14 @@ static KEYS char_to_key(const char c) {
 }
 
 //keyboard event callback
-void key_press(unsigned char key, int x, int y) {
+void key_press(unsigned char key, int x, int y) 
+{
 	KEYS k = char_to_key(key);
 	if (k == KEYS::NOT_KEY) return;
 	GB->press(k);
 }
-void key_release(unsigned char key , int x , int y) {
+void key_release(unsigned char key , int x , int y) 
+{
 	KEYS k = char_to_key(key);
 	if (k == KEYS::NOT_KEY) return;
 	GB->release(k);
@@ -85,13 +88,13 @@ void reshape_window(GLsizei w, GLsizei h)
     gluOrtho2D(0, w, h, 0);        
     glMatrixMode(GL_MODELVIEW);
     glViewport(0, 0, w, h);
- 
     display_width = w;
     display_height = h;
 }
 
 //Timer Callback
-static void timer(int value) {
+static void timer(int value)
+{
 	GB->cpu.set_interrupt_flag(INTERRUPTS::V_BLANK);
 	if (GB->cpu.ready_for_render) {
 		GB->gpu.draw_frame();
@@ -101,7 +104,8 @@ static void timer(int value) {
     glutTimerFunc(16, timer, 0);
 }
 
-size_t read_file_and_copy(std::unique_ptr<uint8_t[]>& ptr, const char* filepath) {
+size_t read_file_and_copy(std::unique_ptr<uint8_t[]>& ptr, const char* filepath)
+{
 	//read file
 	std::ifstream ifs(filepath, std::ios::in | std::ios::binary);
 	if (ifs.fail()) {

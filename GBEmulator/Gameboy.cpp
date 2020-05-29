@@ -23,7 +23,6 @@ uint8_t OP_CYCLES[0x100] = {
 	12,12, 8, 4, 0,16, 8,32,12, 8,16, 4, 0, 0, 8,32     // 0xF0
 };
 
-
 Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) 
 	:memory(std::make_unique<Memory>(rom,size,boot_rom)), 
 	rom_ptr(rom), 
@@ -191,7 +190,6 @@ void CPU::set_memmap(Memory *mem) {
 void CPU::step() 
 {
 	if (ready_for_render) return;
-
 	if (!IME) HALT = 0;
 
 	// V-blank interrupt
@@ -224,7 +222,7 @@ void CPU::step()
 		memory->write(INTERRUPT_FLAG, IF);
 	}
 
-	if (PC == 0x100 && memory->is_booting) {
+	if (PC == BOOTROM_SIZE && memory->is_booting) {
 		std::cout << "finish boot seqence\n";
 		memory->is_booting = false;
 	}
@@ -233,9 +231,8 @@ void CPU::step()
 	uint8_t op = memory->read(PC++);
 	uint16_t NN;
 	uint32_t NNNN;
-	uint8_t N;
 	int8_t SN;
-	uint8_t D1, D2;
+	uint8_t N, D1, D2;
 
 	switch (op) {
 	case 0x00: //nop
@@ -269,9 +266,7 @@ void CPU::step()
 		break;
 	case 0x07: // RLCA
 		RA = (RA << 1) | (RA >> 7);
-		FZ = 0;
-		FN = 0;
-		FH = 0;
+		FZ = FN = FH = 0;
 		FC = (RA & 0x01);
 		break;
 	case 0x08:
@@ -343,9 +338,7 @@ void CPU::step()
 	case 0x17:
 		N = RA;
 		RA = RA << 1 | FC;
-		FZ = 0;
-		FN = 0;
-		FH = 0;
+		FZ = FN = FH = 0;
 		FC = (N >> 7) & 0x01;
 		break;
 	case 0x18:
@@ -386,9 +379,7 @@ void CPU::step()
 	case 0x1F:
 		N = RA;
 		RA = RA >> 1 | (FC << 7);
-		FZ = 0;
-		FN = 0;
-		FH = 0;
+		FZ = FN = FH = 0;
 		FC = N & 0x1;
 		break;
 	case 0x20:
@@ -430,18 +421,9 @@ void CPU::step()
 		D2 = RA & 0x0F;
 		if (FN)
 		{
-			if (FH)
-			{
-				D2 -= 6;
-			}
-			if (FC)
-			{
-				D1 -= 6;
-			}
-			if (D2 > 9)
-			{
-				D2 -= 6;
-			}
+			if (FH) D2 -= 6;
+			if (FC) D1 -= 6;
+			if (D2 > 9) D2 -= 6;
 			if (D1 > 9)
 			{
 				D1 -= 6;
@@ -484,21 +466,16 @@ void CPU::step()
 		FN = 1;
 		FH = ((RHL.b8[LO] & 0x0F) == 0x0F);
 		break;
-		break;
 	case 0x2E:
 		RHL.b8[LO] = memory->read(PC++);
 		break;
 	case 0x2F:
 		RA = RA ^ 0xFF;
-		FN = 1;
-		FH = 1;
+		FN = FH = 1;
 		break;
 	case 0x30: // JP NC, imm
 		SN = (int8_t)memory->read(PC++);
-		if (!FC)
-		{
-			PC += SN;
-		}
+		if (!FC) PC += SN;
 		break;
 	case 0x31:
 		SP = memory->read(PC++);
@@ -528,8 +505,7 @@ void CPU::step()
 		memory->write(RHL.b16, memory->read(PC++));
 		break;
 	case 0x37:
-		FN = 0;
-		FH = 0;
+		FN = FH = 0;
 		FC = 1;
 		break;
 	case 0x38:
@@ -544,7 +520,7 @@ void CPU::step()
 		NN = RHL.b16 - 1;
 		RHL.b8[HI] = NN >> 8;
 		RHL.b8[LO] = NN & 0xFF;
-			break;
+		break;
 	case 0x3C:
 		RA++;
 		FZ = (RA == 0x00);
@@ -561,8 +537,7 @@ void CPU::step()
 		RA = memory->read(PC++);
 		break;
 	case 0x3F:
-		FN = 0;
-		FH = 0;
+		FN = FH = 0;
 		FC = FC ^ 0x1;
 		break;
 	case 0x40://do nothing
@@ -706,13 +681,13 @@ void CPU::step()
 		RA = NN & 0xFF;
 		break;
 	case 0x82:
-			NN = RA + RDE.b8[HI];
-			FZ = ((NN & 0xFF) == 0x00);
-			FN = 0;
-			FH = (RA ^ RDE.b8[HI] ^ NN) & 0x10 ? 1 : 0;
-			FC = (NN & 0xFF00) ? 1 : 0;
-			RA = NN & 0xFF;
-			break;
+		NN = RA + RDE.b8[HI];
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 0;
+		FH = (RA ^ RDE.b8[HI] ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
 	case 0x85:
 		NN = RA + RHL.b8[LO];
 		FZ = ((NN & 0xFF) == 0x00);
@@ -811,10 +786,8 @@ void CPU::step()
 		break;
 	case 0x97:
 		RA = 0x00;
-		FZ = 1;
-		FN = 1;
-		FH = 0;
-		FC = 0;
+		FZ = FN = 1;
+		FH = FC = 0;
 		break;
 	case 0x98:
 		N = RBC.b8[HI];
@@ -943,23 +916,17 @@ void CPU::step()
 	case 0xA8:
 		RA = RA ^ RBC.b8[HI];
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xA9:
 		RA = RA ^ RBC.b8[LO];
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xAE:
 		RA = RA ^ memory->read(RHL.b16);
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xAF:
 		RA = 0x00;
@@ -969,57 +936,41 @@ void CPU::step()
 	case 0xB0:
 		RA = RA | RBC.b8[HI];
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xB1:
 		RA = RA | RBC.b8[LO];
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xB2:
 		RA = RA | RDE.b8[HI];
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xB3:
 		RA = RA | RDE.b8[LO];
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xB4:
 		RA = RA | RHL.b8[HI];
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xB5:
 		RA = RA | RHL.b8[LO];
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xB6:
 		RA = RA | memory->read(RHL.b16);
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xB7:
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xB8:
 		NN = RA - RBC.b8[HI];
@@ -1072,10 +1023,8 @@ void CPU::step()
 		FC = (NN & 0xFF00) ? 1 : 0;
 		break;
 	case 0xBF:
-		FZ = 1;
-		FN = 1;
-		FH = 0;
-		FC = 0;
+		FZ = FN = 1;
+		FH = FC = 0;
 		break;
 	case 0xC0:
 		if (!FZ)
@@ -1234,9 +1183,8 @@ void CPU::step()
 	case 0xE6:
 		RA = RA & memory->read(PC++);
 		FZ = (RA == 0x00);
-		FN = 0;
+		FN = FC = 0;
 		FH = 1;
-		FC = 0;
 		break;
 	case 0xE9:
 		PC = RHL.b16;
@@ -1253,9 +1201,7 @@ void CPU::step()
 	case 0xEE:
 		RA = RA ^ memory->read(PC++);
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xEF:
 		memory->write(--SP, PC >> 8);
@@ -1284,15 +1230,12 @@ void CPU::step()
 	case 0xF6:
 		RA = RA | memory->read(PC++);
 		FZ = (RA == 0x00);
-		FN = 0;
-		FH = 0;
-		FC = 0;
+		FN = FH = FC = 0;
 		break;
 	case 0xF7:
 		memory->write(--SP, PC >> 8);
 		memory->write(--SP, PC & 0xFF);
 		PC = 0x0030;
-		break;
 		break;
 	case 0xF9:
 		SP = RHL.b16;
@@ -1320,7 +1263,6 @@ void CPU::step()
 		std::cout << "Operation not inplemented : " << std::hex << (int)op << std::endl;//todo for debug
 		dump_reg();
 		while (1);
-		break;
 	}
 
 	cycle_count += OP_CYCLES[op];
@@ -1336,7 +1278,6 @@ void CPU::step()
 	if (lcd_count > LCD_LINE_CYCLES) {
 		memory->write( LCDC_Y_CORDINATE , (memory->read(LCDC_Y_CORDINATE) + 1) % LCD_VERT_LINES);
 		lcd_count -= LCD_LINE_CYCLES;
-
 		if (memory->read(LCDC_Y_CORDINATE) == FRAME_HEIGHT) {
 			ready_for_render = true;
 		}
@@ -1387,9 +1328,9 @@ void GPU::draw_frame() {
 		for (int i = 0; i < 32; i++) {
 			for (int j = 0; j < 32; j++) {
 				auto tilenum = memory->read(bg_top_addr + i * 32 + j);
-				if (tilenum != 0) {
-					int kads = 0;
-				}
+				//if (tilenum != 0) {
+				//	int kads = 0;
+				//}
 				uint16_t tile_id;
 				if (!tiledata_select) tile_id = (int8_t)tilenum;
 				else tile_id = tilenum;
