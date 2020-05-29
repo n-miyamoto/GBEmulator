@@ -116,53 +116,41 @@ static void timer(int value) {
     glutTimerFunc(16, timer, 0);
 }
 
+size_t read_file_and_copy(std::unique_ptr<uint8_t[]>& ptr, const char* filepath) {
+	//read file
+	std::ifstream ifs(filepath, std::ios::in | std::ios::binary);
+	if (ifs.fail()) {
+		std::cerr << "Failed to open file." << std::endl;
+		return -1;
+	}
+	
+	//read file size
+	ifs.seekg(0, ifs.end);
+	auto sz = ifs.tellg();
+	ifs.seekg(0, ifs.beg);
+
+	//alloc buf and load to mem
+	ptr = std::make_unique<uint8_t[]>(sz);
+	if (ptr == nullptr) {
+		std::cout << "malloc failed" << std::endl;
+		return -1;
+	}
+	ifs.read(reinterpret_cast<char*>(ptr.get()), sz);
+	
+	return sz;
+}
+
 int main(int argc, char *argv[]) 
 {
+	//load cart
+	const char* romfile = "rsrc/Tetris.gb";
 	std::unique_ptr<uint8_t[]> rom;
-	std::size_t rom_size;
-	{
-		// load cart romfile
-		const char* romfile = "rsrc/Tetris.gb";
-		std::ifstream rom_file(romfile, std::ios::in | std::ios::binary);
-		if (rom_file.fail()) {
-			std::cerr << "Failed to open file." << std::endl;
-			return -1;
-		}
-		// read rom size
-		rom_file.seekg(0, rom_file.end);
-		rom_size = rom_file.tellg();
-		rom_file.seekg(0, rom_file.beg);
-		// copy cart to buf
-		rom = std::make_unique<uint8_t[]>(rom_size);
-		if (rom == nullptr) {
-			std::cout << "malloc failed" << std::endl;
-			return -1;
-		}
-		rom_file.read(reinterpret_cast<char*>(rom.get()), rom_size);
-	}
+	std::size_t rom_size = read_file_and_copy(rom, romfile);
 
+	//load boot rom
+	const char* boot_rom_path = "rsrc/DMG_ROM.bin";
 	std::unique_ptr<uint8_t[]> boot_rom;
-	std::size_t boot_rom_size;
-	{
-		// load cart romfile
-		const char* boot_rom_path = "rsrc/DMG_ROM.bin";
-		std::ifstream rom_file(boot_rom_path, std::ios::in | std::ios::binary);
-		if (rom_file.fail()) {
-			std::cerr << "Failed to open file." << std::endl;
-			return -1;
-		}
-		// read rom size
-		rom_file.seekg(0, rom_file.end);
-		boot_rom_size = rom_file.tellg();
-		rom_file.seekg(0, rom_file.beg);
-		// copy cart to buf
-		boot_rom = std::make_unique<uint8_t[]>(boot_rom_size);
-		if (rom == nullptr) {
-			std::cout << "malloc failed" << std::endl;
-			return -1;
-		}
-		rom_file.read(reinterpret_cast<char*>(boot_rom.get()), boot_rom_size);
-	}
+	std::size_t boot_rom_size = read_file_and_copy(boot_rom, boot_rom_path);
 
 	//init GameBoy
 	Gameboy gb(rom.get(), rom_size, boot_rom.get());
@@ -171,6 +159,7 @@ int main(int argc, char *argv[])
 
 	bitmap = std::make_unique<uint8_t[]>(IMAGE_SIZE_IN_BYTE);
 
+	//Init opengl
 	glutInit(&argc, argv);
 	glutInitWindowSize(FRAME_WIDTH, FRAME_HEIGHT);
 	glutInitWindowPosition(320, 320);
@@ -193,6 +182,8 @@ int main(int argc, char *argv[])
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP); 
 	glEnable(GL_TEXTURE_2D);
+
+	//main loop
 	glutMainLoop();
 
 	return 0;
