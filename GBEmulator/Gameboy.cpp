@@ -96,8 +96,7 @@ void CPU::shift_operation_CB() {
 						val = (val >> 1);
 						val |= op ? (FC << 7) : (N << 7);
 						FZ = (val == 0x00);
-						FN = 0;
-						FH = 0;
+						FN = FH = 0;
 						FC = (N & 0x01);
 					}
 					else    // RLC R / RL R
@@ -106,8 +105,7 @@ void CPU::shift_operation_CB() {
 						val = (val << 1);
 						val |= op ? FC : (N >> 7);
 						FZ = (val == 0x00);
-						FN = 0;
-						FH = 0;
+						FN = FH = 0;
 						FC = (N >> 7);
 					}
 					break;
@@ -117,16 +115,14 @@ void CPU::shift_operation_CB() {
 						FC = val & 0x01;
 						val = (val >> 1) | (val & 0x80);
 						FZ = (val == 0x00);
-						FN = 0;
-						FH = 0;
+						FN = FH = 0;
 					}
 					else    // SLA R
 					{
 						FC = (val >> 7);
 						val = val << 1;
 						FZ = (val == 0x00);
-						FN = 0;
-						FH = 0;
+						FN = FH = 0;
 					}
 					break;
 				case 0x3:
@@ -135,8 +131,7 @@ void CPU::shift_operation_CB() {
 						FC = val & 0x01;
 						val = val >> 1;
 						FZ = (val == 0x00);
-						FN = 0;
-						FH = 0;
+						FN = FH = 0;
 					}
 					else    // SWAP R
 					{
@@ -144,9 +139,7 @@ void CPU::shift_operation_CB() {
 						N |= (val << 4) & 0xF0;
 						val = N;
 						FZ = (val == 0);
-						FN = 0;
-						FH = 0;
-						FC = 0;
+						FN = FH = FC = 0;
 					}
 					break;
 			}
@@ -181,7 +174,6 @@ void CPU::shift_operation_CB() {
 		}
 	}
 }
-
 
 void CPU::set_memmap(Memory *mem) {
 	memory = mem;
@@ -1350,7 +1342,7 @@ void GPU::draw_frame() {
 		}
 	}
 	else {
-		for (int i = 0; i < 256 * 256; i++) total_frame[i] = 0;//clear white
+		std::memset(total_frame.get(), 0, 256*256);
 	}
 	
 	if (window_display) {
@@ -1420,7 +1412,6 @@ void GPU::draw_frame() {
 	}	
 }
 
-	
 Memory::Memory(uint8_t* cart, size_t rom_size, uint8_t* bootrom) {
 	std::memset(map, 0, MAX_ADDRESS);
 	std::memcpy(map, cart, rom_size);
@@ -1434,11 +1425,9 @@ void Memory::dma_operation(uint8_t src) {
 }
 
 void Memory::write(uint16_t address, uint8_t data) {
-
 	if (address >= 0 && address < 0x8000) {
 		std::cout << "unable to write ROM\n";
 		return;
-		while (1);
 	}
 
 	//handle key input
@@ -1455,8 +1444,8 @@ void Memory::write(uint16_t address, uint8_t data) {
 	//Default operation
 	map[address] = data;
 }
-uint8_t Memory::read(uint16_t address) {
 
+uint8_t Memory::read(uint16_t address) {
 	if (is_booting && address < BOOTROM_SIZE ) {
 		//booting. read from boot rom
 		return boot_rom[address];

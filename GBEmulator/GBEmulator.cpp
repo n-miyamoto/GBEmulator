@@ -55,13 +55,13 @@ static KEYS char_to_key(const char c)
 //keyboard event callback
 void key_press(unsigned char key, int x, int y) 
 {
-	KEYS k = char_to_key(key);
+	auto k = char_to_key(key);
 	if (k == KEYS::NOT_KEY) return;
 	GB->press(k);
 }
 void key_release(unsigned char key , int x , int y) 
 {
-	KEYS k = char_to_key(key);
+	auto k = char_to_key(key);
 	if (k == KEYS::NOT_KEY) return;
 	GB->release(k);
 }
