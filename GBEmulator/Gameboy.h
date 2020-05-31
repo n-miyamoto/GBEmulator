@@ -28,7 +28,7 @@
 #define LCD_SCROLL_Y        (0xFF42)
 #define LCD_SCROLL_X        (0xFF43)
 #define DMA_OP_ADDRESS		(0xFF46)
-#define INTERRUPT_ENABLE	(0xFFF)
+#define INTERRUPT_ENABLE	(0xFFFF)
 #define MAX_ADDRESS			(0x10000)
 
 #define BOOTROM_SIZE		(0x100)
