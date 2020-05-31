@@ -189,8 +189,8 @@ void CPU::step()
 		!!(memory->read(INTERRUPT_FLAG) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK)) &&
 		!!(memory->read(INTERRUPT_ENABLE) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK))) {
 		HALT = 0;
-		//dump_reg();
-		//std::cout << "V-blank interrupt\n";
+		dump_reg();
+		std::cout << "V-blank interrupt\n";
 		IME = 0;
 		memory->write(--SP, PC >> 8);
 		memory->write(--SP, PC & 0xFF);
@@ -534,6 +534,9 @@ void CPU::step()
 		break;
 	case 0x40://do nothing
 		break;
+	case 0x42:
+		RBC.b8[HI] = RDE.b8[HI];
+		break;
 	case 0x44:
 		RBC.b8[HI] = RHL.b8[HI];
 		break;
@@ -680,6 +683,14 @@ void CPU::step()
 		FC = (NN & 0xFF00) ? 1 : 0;
 		RA = NN & 0xFF;
 		break;
+	case 0x83: // ADD A, E
+		NN = RA + RDE.b8[LO];
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 0;
+		FH = (RA ^ RDE.b8[LO] ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
 	case 0x85:
 		NN = RA + RHL.b8[LO];
 		FZ = ((NN & 0xFF) == 0x00);
@@ -702,6 +713,15 @@ void CPU::step()
 		FZ = ((NN & 0xFF) == 0x00);
 		FN = 0;
 		FH = NN & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x88: // ADC A, B
+		N = RBC.b8[HI];
+		NN = RA + N + FC;
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 0;
+		FH = (RA ^ N ^ NN) & 0x10 ? 1 : 0;
 		FC = (NN & 0xFF00) ? 1 : 0;
 		RA = NN & 0xFF;
 		break;
@@ -1079,6 +1099,16 @@ void CPU::step()
 	case 0xCB:
 		shift_operation_CB();
 		break;
+	case 0xCC:	// CALL Z, imm
+		NN = memory->read(PC++);
+		NN |= memory->read(PC++) << 8;
+		if (FZ)
+		{
+			memory->write(--SP, PC >> 8);
+			memory->write(--SP, PC & 0xFF);
+			PC = NN;
+		}
+		break;
 	case 0xCD:
 		NN = memory->read(PC++);
 		NN |= memory->read(PC++) << 8;
@@ -1228,6 +1258,26 @@ void CPU::step()
 		memory->write(--SP, PC >> 8);
 		memory->write(--SP, PC & 0xFF);
 		PC = 0x0030;
+		break;
+	case 0xF8: // LD HL, SP+/-imm
+		SN = (int8_t)memory->read(PC++);
+		NN = SP + SN;
+		if (SN >= 0)
+		{
+			FZ = 0;
+			FN = 0;
+			FH = ((SP ^ SN ^ NN) & 0x1000) ? 1 : 0;
+			FC = (SP > NN);
+		}
+		else
+		{
+			FZ = 0;
+			FN = 0;
+			FH = ((SP ^ SN ^ NN) & 0x1000) ? 1 : 0;
+			FC = (SP < NN);
+		}
+		RHL.b8[HI] = (NN & 0xFF00) >> 8;
+		RHL.b8[LO] = (NN & 0x00FF);
 		break;
 	case 0xF9:
 		SP = RHL.b16;
@@ -1434,7 +1484,7 @@ void Memory::dma_operation(uint8_t src) {
 
 void Memory::write(uint16_t address, uint8_t data) {
 	if (address >= 0x2000 && address < 0x4000) {
-		std::cout << "switch bank : " << static_cast<int>(data) << std::endl;
+		std::cout << "switch bank : "<<  address << " " << static_cast<int>(data) << std::endl;
 		memory_bank = data;
 		return;
 	}
