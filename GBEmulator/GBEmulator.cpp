@@ -132,7 +132,8 @@ size_t read_file_and_copy(std::unique_ptr<uint8_t[]>& ptr, const char* filepath)
 int main(int argc, char *argv[]) 
 {
 	//load cart
-	const char* romfile = "rsrc/Tetris.gb";
+	//const char* romfile = "rsrc/Tetris.gb";
+	const char* romfile = "rsrc/PokemonBlue.gb";
 	std::unique_ptr<uint8_t[]> rom;
 	std::size_t rom_size = read_file_and_copy(rom, romfile);
 

@@ -1,12 +1,25 @@
 #pragma once
 #include <iostream>
 #include <memory>
+#include "Cartridge.h"
 
 #define VBLANK_INTR_ADDR    (0x0040)
 #define KEYPAD_INTR_ADDR    (0x0060)
 #define ROM_TITLE_START		(0x0134)
 #define ROM_TITLE_END		(0x0143)
-#define ROM_RAM_SIZE		(0x0149)
+#define MANUFACTURE_CODE_ADDR	(0x013F)
+#define CGB_FLAG_ADDR	(0x0143)
+#define NEW_LICENSE_CODE_ADDR	(0x0144)
+#define SGB_FLAG_ADDR	(0x0146)
+#define CARTRIDGE_TYPE_ADDR	(0x0147)
+#define ROM_SIZE_ADDR		(0x0148)
+#define RAM_SIZE_ADDR		(0x0149)
+#define DESTINATION_CODE_ADDR	(0x014A)
+#define OLD_LICENSE_CODE_ADDR	(0x014B)
+#define MASK_ROM_VER_ADDR	(0x014C)
+#define HEADER_CHECKSUM_ADDR	(0x014D)
+#define GLOBAL_CHECKSUM_ADDR	(0x014E)
+#define CART_MAX_ADDR		(0x8000)
 #define DIV_REGISTER		(0xFF04)
 #define KEY_INPUT_ADDRES	(0xFF00)
 #define INTERRUPT_FLAG		(0xFF0F)
@@ -15,7 +28,7 @@
 #define LCD_SCROLL_Y        (0xFF42)
 #define LCD_SCROLL_X        (0xFF43)
 #define DMA_OP_ADDRESS		(0xFF46)
-#define INTERRUPT_ENABLE	(0xFFFF)
+#define INTERRUPT_ENABLE	(0xFFF)
 #define MAX_ADDRESS			(0x10000)
 
 #define BOOTROM_SIZE		(0x100)
@@ -126,9 +139,10 @@ private:
 	bool key_pressed[static_cast<int>(KEYS::KEY_NUMS)] = {0};
 
 public:
+	Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom);
+	Cartridge cartridge;
 	CPU cpu;
 	GPU gpu;
-	Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom);
 	void show_title();
 	void show_cart_info();
 	bool isRendered = false;

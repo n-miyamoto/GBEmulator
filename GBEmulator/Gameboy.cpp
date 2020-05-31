@@ -26,9 +26,9 @@ uint8_t OP_CYCLES[0x100] = {
 Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) 
 	:memory(std::make_unique<Memory>(rom,size,boot_rom)), 
 	rom_ptr(rom), 
-	rom_size(size)
+	rom_size(size),
+	cartridge(rom)
 {
-	//uint32_t ram_sizes[] = { 0x00, 0x800, 0x2000, 0x8000, 0x20000 };
 	cpu.set_memmap(memory.get());
 	gpu.set_memmap(memory.get());
 }
@@ -189,8 +189,8 @@ void CPU::step()
 		!!(memory->read(INTERRUPT_FLAG) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK)) &&
 		!!(memory->read(INTERRUPT_ENABLE) & 1 << static_cast<uint8_t>(INTERRUPTS::V_BLANK))) {
 		HALT = 0;
-		dump_reg();
-		std::cout << "V-blank interrupt\n";
+		//dump_reg();
+		//std::cout << "V-blank interrupt\n";
 		IME = 0;
 		memory->write(--SP, PC >> 8);
 		memory->write(--SP, PC & 0xFF);
@@ -1413,9 +1413,9 @@ void GPU::draw_frame() {
 }
 
 Memory::Memory(uint8_t* cart, size_t rom_size, uint8_t* bootrom) {
-	std::memset(map, 0, MAX_ADDRESS);
-	std::memcpy(map, cart, rom_size);
 	std::memcpy(boot_rom, bootrom, BOOTROM_SIZE);
+	std::memset(map, 0, MAX_ADDRESS);
+	std::memcpy(map, cart, CART_MAX_ADDR);
 }
 
 void Memory::dma_operation(uint8_t src) {
@@ -1425,6 +1425,11 @@ void Memory::dma_operation(uint8_t src) {
 }
 
 void Memory::write(uint16_t address, uint8_t data) {
+	if (address >= 0xA000 && address < 0xC000) {
+		std::cout << ">>>External rom<<<\n";
+		return;
+	}
+
 	if (address >= 0 && address < 0x8000) {
 		std::cout << "unable to write ROM\n";
 		return;
@@ -1446,6 +1451,10 @@ void Memory::write(uint16_t address, uint8_t data) {
 }
 
 uint8_t Memory::read(uint16_t address) {
+	if (address >= 0xA000 && address < 0xC000) {
+		std::cout << ">>>External rom<<<\n";
+	}
+
 	if (is_booting && address < BOOTROM_SIZE ) {
 		//booting. read from boot rom
 		return boot_rom[address];
