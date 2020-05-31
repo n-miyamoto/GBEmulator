@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include "Cartridge.h"
+#include <vector>
 
 #define VBLANK_INTR_ADDR    (0x0040)
 #define KEYPAD_INTR_ADDR    (0x0060)
@@ -77,9 +78,11 @@ private:
 	uint8_t map[MAX_ADDRESS];
 	uint8_t boot_rom[BOOTROM_SIZE];
 	void dma_operation(uint8_t src);
+	uint8_t memory_bank = 0;
+	std::vector<std::unique_ptr<uint8_t[]> > rom_banks = {};
 public:
+	Memory(Cartridge &cart, uint8_t* rom, size_t rom_size,  uint8_t* bootrom);
 	uint8_t key = 0xFF;
-	Memory(uint8_t* cart, size_t rom_size,  uint8_t* bootrom);
 	void write(uint16_t address, uint8_t data);
 	uint8_t read(uint16_t address);
 	bool is_booting = true;
@@ -133,6 +136,7 @@ public:
 class Gameboy
 {
 private:
+	Cartridge cartridge;
 	std::unique_ptr<Memory> memory;
 	uint8_t* rom_ptr = nullptr;
 	size_t rom_size = 0; 
@@ -140,7 +144,6 @@ private:
 
 public:
 	Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom);
-	Cartridge cartridge;
 	CPU cpu;
 	GPU gpu;
 	void show_title();

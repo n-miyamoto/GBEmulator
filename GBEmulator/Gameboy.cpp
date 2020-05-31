@@ -24,10 +24,10 @@ uint8_t OP_CYCLES[0x100] = {
 };
 
 Gameboy::Gameboy(uint8_t* rom, size_t size, uint8_t* boot_rom) 
-	:memory(std::make_unique<Memory>(rom,size,boot_rom)), 
+	: cartridge(rom),
+	memory(std::make_unique<Memory>(cartridge, rom,size,boot_rom)),
 	rom_ptr(rom), 
-	rom_size(size),
-	cartridge(rom)
+	rom_size(size)
 {
 	cpu.set_memmap(memory.get());
 	gpu.set_memmap(memory.get());
@@ -1412,10 +1412,18 @@ void GPU::draw_frame() {
 	}	
 }
 
-Memory::Memory(uint8_t* cart, size_t rom_size, uint8_t* bootrom) {
+Memory::Memory(Cartridge& cart, uint8_t* rom, size_t rom_size, uint8_t* bootrom) {
 	std::memcpy(boot_rom, bootrom, BOOTROM_SIZE);
 	std::memset(map, 0, MAX_ADDRESS);
-	std::memcpy(map, cart, CART_MAX_ADDR);
+	std::memcpy(map, rom, CART_MAX_ADDR);
+
+	rom_banks.resize(cart.rom_size_banknum);
+	// allocate and copy rom banks
+	for (int i = 0;i < cart.rom_size_banknum;i++) {
+		rom_banks[i] = std::make_unique<uint8_t[]>(0x4000);
+		std::memcpy(rom_banks[i].get(), rom + i*0x4000, 0x4000);
+	}
+	
 }
 
 void Memory::dma_operation(uint8_t src) {
@@ -1425,13 +1433,24 @@ void Memory::dma_operation(uint8_t src) {
 }
 
 void Memory::write(uint16_t address, uint8_t data) {
-	if (address >= 0xA000 && address < 0xC000) {
-		std::cout << ">>>External rom<<<\n";
+	if (address >= 0x2000 && address < 0x4000) {
+		std::cout << "switch bank : " << static_cast<int>(data) << std::endl;
+		memory_bank = data;
 		return;
 	}
 
 	if (address >= 0 && address < 0x8000) {
 		std::cout << "unable to write ROM\n";
+		return;
+	}
+
+	if (address >= 0x2000 && address < 0x4000) {
+		std::cout << "switch bank\n";
+		return;
+	}
+
+	if (address >= 0xA000 && address < 0xC000) {
+		std::cout << ">>>External rom<<<\n";
 		return;
 	}
 
@@ -1451,8 +1470,15 @@ void Memory::write(uint16_t address, uint8_t data) {
 }
 
 uint8_t Memory::read(uint16_t address) {
+
+	// access to rom cartridge
+	if (address >= 0x4000 && address < 0x8000) {
+		return rom_banks[memory_bank][address - 0x4000];
+	}
+
+
 	if (address >= 0xA000 && address < 0xC000) {
-		std::cout << ">>>External rom<<<\n";
+		std::cout << ">>>External ram<<<\n";
 	}
 
 	if (is_booting && address < BOOTROM_SIZE ) {

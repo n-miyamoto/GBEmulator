@@ -16,7 +16,7 @@ Cartridge::Cartridge(uint8_t* rom)
 		rom_size_banknum = 0;
 	}
 	else if (rom_size_id < 0x08) {
-		rom_size_banknum = 1 << (rom_size_banknum + 1);
+		rom_size_banknum = 1 << (rom_size_id + 1);
 	}
 	else if (rom_size_id == 0x52) rom_size_banknum = 72;
 	else if (rom_size_id == 0x53) rom_size_banknum = 80;
