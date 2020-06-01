@@ -2,6 +2,7 @@
 #include <memory>
 #include <iostream>
 #include <cstring>
+#include <algorithm>
 
 uint8_t OP_CYCLES[0x100] = {
 	//   0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
@@ -295,6 +296,13 @@ void CPU::step()
 	case 0x0E:
 		RBC.b8[LO] = memory->read(PC++); //B
 		break;
+	case 0x0F: // RRCA
+		FC = RA & 0x01;
+		RA = (RA >> 1) | (RA << 7);
+		FZ = 0;
+		FN = 0;
+		FH = 0;
+		break;
 	case 0x10:
 		std::cout << "HALT";
 		HALT = 1;
@@ -507,11 +515,22 @@ void CPU::step()
 			PC += SN;
 		}
 		break;
+	case 0x39: // ADD HL, SP
+		NNNN = RHL.b16 + SP;
+		FN = 0;
+		FH = (NNNN ^ RHL.b16 ^ SP) & 0x1000 ? 1 : 0;
+		FC = (NNNN & 0xFFFF0000) ? 1 : 0;
+		RHL.b8[HI] = (NNNN & 0x0000FF00) >> 8;
+		RHL.b8[LO] = (NNNN & 0x000000FF);
+		break;
 	case 0x3A:
 		RA = memory->read(RHL.b16);
 		NN = RHL.b16 - 1;
 		RHL.b8[HI] = NN >> 8;
 		RHL.b8[LO] = NN & 0xFF;
+		break;
+	case 0x3B: // DEC SP
+		SP--;
 		break;
 	case 0x3C:
 		RA++;
@@ -534,17 +553,42 @@ void CPU::step()
 		break;
 	case 0x40://do nothing
 		break;
+	case 0x41: // LD B, C
+		RBC.b8[HI] = RBC.b8[LO];
+		break;
 	case 0x42:
 		RBC.b8[HI] = RDE.b8[HI];
 		break;
+	case 0x43: // LD B, E
+		RBC.b8[HI] = RDE.b8[LO];
+		break;
 	case 0x44:
 		RBC.b8[HI] = RHL.b8[HI];
+		break;
+	case 0x45: // LD B, L
+		RBC.b8[HI] = RHL.b8[LO];
 		break;
 	case 0x46:	
 		RBC.b8[HI] = memory->read(RHL.b16);
 		break;
 	case 0x47:
 		RBC.b8[HI] = RA;
+		break;
+	case 0x48: // LD C, B
+		RBC.b8[LO] = RBC.b8[HI];
+		break;
+	case 0x49: // LD C, C
+		break;
+	case 0x4A: // LD C, D
+		RBC.b8[LO] = RDE.b8[HI];
+	case 0x4B: // LD C, E
+		RBC.b8[LO] = RDE.b8[LO];
+		break;
+	case 0x4C: // LD C, H
+		RBC.b8[LO] = RHL.b8[HI];
+		break;
+	case 0x4D: // LD C, L
+		RBC.b8[LO] = RHL.b8[LO];
 		break;
 	case 0x4E:	
 		RBC.b8[LO] = memory->read(RHL.b16);
@@ -598,7 +642,6 @@ void CPU::step()
 	case 0x60:
 		RHL.b8[HI] = RBC.b8[HI];
 		break;
-
 	case 0x61:
 		RHL.b8[HI] = RBC.b8[LO];
 		break;
@@ -611,11 +654,25 @@ void CPU::step()
 	case 0x67:
 		RHL.b8[HI] = RA;
 		break;
+	case 0x68: // LD L, B
+		RHL.b8[LO] = RBC.b8[HI];
+		break;
 	case 0x69:
 		RHL.b8[LO] = RBC.b8[LO];
 		break;
+	case 0x6A: // LD L, D
+		RHL.b8[LO] = RDE.b8[HI];
+		break;
 	case 0x6B:
 		RHL.b8[LO] = RDE.b8[LO];
+		break;
+	case 0x6C: // LD L, H
+		RHL.b8[LO] = RHL.b8[HI];
+		break;
+	case 0x6D: // LD L, L
+		break;
+	case 0x6E: // LD L, (HL)
+		RHL.b8[LO] = memory->read(RHL.b16);
 		break;
 	case 0x6F:
 		RHL.b8[LO] = RA;
@@ -675,6 +732,13 @@ void CPU::step()
 		FC = (NN & 0xFF00) ? 1 : 0;
 		RA = NN & 0xFF;
 		break;
+	case 0x81: // ADD A, C
+		NN = RA + RBC.b8[LO];
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 0;
+		FH = (RA ^ RBC.b8[LO] ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
 	case 0x82:
 		NN = RA + RDE.b8[HI];
 		FZ = ((NN & 0xFF) == 0x00);
@@ -784,6 +848,46 @@ void CPU::step()
 		FZ = ((NN & 0xFF) == 0x00);
 		FN = 1;
 		FH = (RA ^ RBC.b8[HI] ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x91: // SUB C
+		NN = RA - RBC.b8[LO];
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ RBC.b8[LO] ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x92: // SUB D
+		NN = RA - RDE.b8[HI];
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ RDE.b8[HI] ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x93: // SUB E
+		NN = RA - RDE.b8[LO];
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ RDE.b8[LO] ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x94: // SUB H
+		NN = RA - RHL.b8[HI];
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ RHL.b8[HI] ^ NN) & 0x10 ? 1 : 0;
+		FC = (NN & 0xFF00) ? 1 : 0;
+		RA = NN & 0xFF;
+		break;
+	case 0x95: // SUB L
+		NN = RA - RHL.b8[LO];
+		FZ = ((NN & 0xFF) == 0x00);
+		FN = 1;
+		FH = (RA ^ RHL.b8[LO] ^ NN) & 0x10 ? 1 : 0;
 		FC = (NN & 0xFF00) ? 1 : 0;
 		RA = NN & 0xFF;
 		break;
@@ -934,6 +1038,34 @@ void CPU::step()
 		RA = RA ^ RBC.b8[LO];
 		FZ = (RA == 0x00);
 		FN = FH = FC = 0;
+		break;
+	case 0xAA: // XOR D
+		RA = RA ^ RDE.b8[HI];
+		FZ = (RA == 0x00);
+		FN = 0;
+		FH = 0;
+		FC = 0;
+		break;
+	case 0xAB: // XOR E
+		RA = RA ^ RDE.b8[LO];
+		FZ = (RA == 0x00);
+		FN = 0;
+		FH = 0;
+		FC = 0;
+		break;
+	case 0xAC: // XOR H
+		RA = RA ^ RHL.b8[HI];
+		FZ = (RA == 0x00);
+		FN = 0;
+		FH = 0;
+		FC = 0;
+		break;
+	case 0xAD: // XOR L
+		RA = RA ^ RHL.b8[LO];
+		FZ = (RA == 0x00);
+		FN = 0;
+		FH = 0;
+		FC = 0;
 		break;
 	case 0xAE:
 		RA = RA ^ memory->read(RHL.b16);
@@ -1178,6 +1310,28 @@ void CPU::step()
 		NN |= memory->read(SP++) << 8;
 		PC = NN;
 		IME = 1;
+		break;
+	case 0xDA: // JP C, imm
+		NN = memory->read(PC++);
+		NN |= memory->read(PC++) << 8;
+		if (FC)
+		{
+			PC = NN;
+		}
+		break;
+	case 0xDB: // illegal
+		break;
+	case 0xDC: // CALL C, imm
+		NN = memory->read(PC++);
+		NN |= memory->read(PC++) << 8;
+		if (FC)
+		{
+			memory->write(--SP, PC >> 8);
+			memory->write(--SP, PC & 0xFF);
+			PC = NN;
+		}
+		break;
+	case 0xDD: // illegal
 		break;
 	case 0xDE:
 		N = memory->read(PC++);
@@ -1468,6 +1622,7 @@ Memory::Memory(Cartridge& cart, uint8_t* rom, size_t rom_size, uint8_t* bootrom)
 	std::memcpy(map, rom, CART_MAX_ADDR);
 
 	rom_banks.resize(cart.rom_size_banknum);
+	memory_bank_size = cart.rom_size_banknum;
 	// allocate and copy rom banks
 	for (int i = 0;i < cart.rom_size_banknum;i++) {
 		rom_banks[i] = std::make_unique<uint8_t[]>(0x4000);
@@ -1483,9 +1638,10 @@ void Memory::dma_operation(uint8_t src) {
 }
 
 void Memory::write(uint16_t address, uint8_t data) {
-	if (address >= 0x2000 && address < 0x4000) {
+	if (memory_bank_size && address >= 0x2000 && address < 0x4000) {
 		std::cout << "switch bank : "<<  address << " " << static_cast<int>(data) << std::endl;
-		memory_bank = data;
+		if(memory_bank_size > data)
+			memory_bank = data;
 		return;
 	}
 
@@ -1522,7 +1678,7 @@ void Memory::write(uint16_t address, uint8_t data) {
 uint8_t Memory::read(uint16_t address) {
 
 	// access to rom cartridge
-	if (address >= 0x4000 && address < 0x8000) {
+	if (memory_bank_size && address >= 0x4000 && address < 0x8000) {
 		return rom_banks[memory_bank][address - 0x4000];
 	}
 

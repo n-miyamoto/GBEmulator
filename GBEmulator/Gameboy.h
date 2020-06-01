@@ -78,6 +78,7 @@ private:
 	uint8_t map[MAX_ADDRESS];
 	uint8_t boot_rom[BOOTROM_SIZE];
 	void dma_operation(uint8_t src);
+	uint8_t memory_bank_size = 0;
 	uint8_t memory_bank = 0;
 	std::vector<std::unique_ptr<uint8_t[]> > rom_banks = {};
 public:
