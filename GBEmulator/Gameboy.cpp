@@ -1586,8 +1586,8 @@ void GPU::draw_frame() {
 		auto obj_addr = obj_top_addr;
 		auto tile_top_addr = 0x8000;
 		for (int i = 0; i < 40; i++) {//40 objects 
-			auto top = memory->read(obj_addr++) - 16;
-			auto left= memory->read(obj_addr++) - 8;
+			int16_t top = memory->read(obj_addr++) - 16;
+			int16_t left= memory->read(obj_addr++) - 8;
 			auto tile_id = memory->read(obj_addr++);
 			auto flags = memory->read(obj_addr++);
 			auto tile_addr = tile_top_addr + 16 * tile_id;
@@ -1597,18 +1597,21 @@ void GPU::draw_frame() {
 			auto y_flip   = flags >> 5 & 0x01;
 			auto palette  = flags >> 4 & 0x01;
 			
-			for (int k = 0; k < 8; k++) { //1 tile has 16 byte 8px * 8line 
+			for (int16_t k = 0; k < 8; k++) { //1 tile has 16 byte 8px * 8line 
 				uint8_t b1 = memory->read(tile_addr++);
 				uint8_t b2 = memory->read(tile_addr++);
-				for (int l = 0; l < 8; l++) {
+				for (int16_t l = 0; l < 8; l++) {
 					auto px = ((b2 >> (7 - l)) & 0x01);
 					px += ((b1 >> (7 - l)) & 0x01) << 1;
-					auto x = left + l;
-					auto y = top + k;
+					int16_t x = left + l;
+					int16_t y = top + k;
+					int32_t index = (int32_t)frame_width * y + x;
+					if (index < 0)continue;
+					if (index > 160*144 )continue;
 					if (px != 0 && !priority) 
-						frame_buffer[static_cast<size_t>(y) * frame_width + x] = px;
-					else if (priority && !frame_buffer[static_cast<size_t>(y) * frame_width + x]) {
-						frame_buffer[static_cast<size_t>(y) * frame_width + x] = px;
+						frame_buffer[index] = px;
+					else if (priority && !frame_buffer[index]) {
+						frame_buffer[index] = px;
 					}
 				}
 			}
@@ -1616,28 +1619,34 @@ void GPU::draw_frame() {
 	}	
 }
 
-Memory::Memory(Cartridge& cart, uint8_t* rom, size_t rom_size, uint8_t* bootrom) {
-	std::memcpy(boot_rom, bootrom, BOOTROM_SIZE);
-	std::memset(map, 0, MAX_ADDRESS);
-	std::memcpy(map, rom, CART_MAX_ADDR);
+Memory::Memory(Cartridge& cart, uint8_t* rom, size_t rom_size, uint8_t* bootrom)
+	: memory_bank_size(cart.rom_size_banknum),
+	map(MAX_ADDRESS, 0),
+	boot_rom(BOOTROM_SIZE,0)
+{
+
+	for (size_t i = 0;i < BOOTROM_SIZE; i++)
+		boot_rom[i] = bootrom[i];
+	for (size_t i = 0;i < CART_MAX_ADDR; i++)
+		map[i] = rom[i];
 
 	rom_banks.resize(cart.rom_size_banknum);
-	memory_bank_size = cart.rom_size_banknum;
+
 	// allocate and copy rom banks
 	for (int i = 0;i < cart.rom_size_banknum;i++) {
 		rom_banks[i] = std::make_unique<uint8_t[]>(0x4000);
 		std::memcpy(rom_banks[i].get(), rom + i*0x4000, 0x4000);
 	}
-	
 }
 
 void Memory::dma_operation(uint8_t src) {
 	uint16_t src_addr = src << 8;	//copy from 0x**00 ~ 0x**9F
 	uint16_t dst_addr = 0xFE00;		//copy to   0xFE00 ~ 0xFE9F
-	std::memcpy(map + dst_addr, map + src_addr, 0x9F);
+	std::memcpy(&map[0] + dst_addr, &map[0] + src_addr, 0x9F);
 }
 
-void Memory::write(uint16_t address, uint8_t data) {
+void Memory::write(const uint16_t address, uint8_t data) {
+
 	if (memory_bank_size && address >= 0x2000 && address < 0x4000) {
 		std::cout << "switch bank : "<<  address << " " << static_cast<int>(data) << std::endl;
 		if(memory_bank_size > data)
@@ -1672,7 +1681,7 @@ void Memory::write(uint16_t address, uint8_t data) {
 	}
 
 	//Default operation
-	map[address] = data;
+	map[(const uint16_t)address] = data;
 }
 
 uint8_t Memory::read(uint16_t address) {

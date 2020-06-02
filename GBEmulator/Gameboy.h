@@ -75,12 +75,15 @@ enum class KEYS {
 class Memory
 {
 private:
-	uint8_t map[MAX_ADDRESS];
-	uint8_t boot_rom[BOOTROM_SIZE];
+	//uint8_t map[MAX_ADDRESS];
+	std::vector<uint8_t> map;
+	//uint8_t boot_rom[BOOTROM_SIZE];
+	std::vector<uint8_t> boot_rom;
+
 	void dma_operation(uint8_t src);
-	uint8_t memory_bank_size = 0;
 	uint8_t memory_bank = 0;
 	std::vector<std::unique_ptr<uint8_t[]> > rom_banks = {};
+	const uint8_t memory_bank_size = 0;
 public:
 	Memory(Cartridge &cart, uint8_t* rom, size_t rom_size,  uint8_t* bootrom);
 	uint8_t key = 0xFF;
