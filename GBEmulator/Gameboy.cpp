@@ -1517,16 +1517,12 @@ void GPU::draw_frame() {
 	auto obj_display_enable = (memory->read(LCDC) >> 1) & 0x01;
 	auto bg_display = (memory->read(LCDC) >> 0) & 0x01;
 
-	//draw background
 	if (bg_display) {
 		auto bg_top_addr = 0x9800 + 0x400 * bg_tilemap_select;
 		auto tile_top_addr = 0x9000 - 0x1000 * tiledata_select;
 		for (int i = 0; i < 32; i++) {
 			for (int j = 0; j < 32; j++) {
 				auto tilenum = memory->read(bg_top_addr + i * 32 + j);
-				//if (tilenum != 0) {
-				//	int kads = 0;
-				//}
 				uint16_t tile_id;
 				if (!tiledata_select) tile_id = (int8_t)tilenum;
 				else tile_id = tilenum;
@@ -1549,12 +1545,21 @@ void GPU::draw_frame() {
 		std::memset(total_frame.get(), 0, 256*256);
 	}
 	
+	auto scroll_y = memory->read(LCD_SCROLL_Y);
+	auto scroll_x = memory->read(LCD_SCROLL_X);
+
+	for (int y = 0; y < frame_height; y++) {
+		for (int x = 0; x < frame_width; x++) {
+			frame_buffer[static_cast<size_t>(y) * frame_width + x] = total_frame[(static_cast<size_t>(scroll_y) + y) * 256 + (static_cast<size_t>(scroll_x) + x)];
+		}
+	}
+
 	if (window_display) {
 		//draw window
 		auto window_top_addr = 0x9800 + 0x400 * window_tilemap_select;
 		auto tile_top_addr = 0x9000 - 0x1000 * tiledata_select;
-		for (int i = 0; i < 32; i++) {
-			for (int j = 0; j < 32; j++) {
+		for (int i = 0; i < 18; i++) {
+			for (int j = 0; j < 20; j++) {
 				auto tilenum = memory->read(window_top_addr + i * 32 + j);
 				uint16_t tile_id;
 				if (!tiledata_select) tile_id = (int8_t)tilenum;
@@ -1568,23 +1573,9 @@ void GPU::draw_frame() {
 						px += ((b1 >> (7 - l)) & 0x01) << 1;
 						auto y = 8 * i + k;
 						auto x = 8 * j + l;
-						if(px!=0) total_frame[static_cast<size_t>(y) * 256 + x] = px;
+						if(px!=0) frame_buffer[static_cast<size_t>(y) * 160 + x] = px;
 					}
 				}
-			}
-		}
-	}
-
-	auto scroll_y = memory->read(LCD_SCROLL_Y);
-	auto scroll_x = memory->read(LCD_SCROLL_X);
-
-	for (int y = 0; y < frame_height; y++) {
-		for (int x = 0; x < frame_width; x++) {
-			if (scroll_x + x < frame_width && scroll_y + y < frame_height) {
-				frame_buffer[static_cast<size_t>(y) * frame_width + x] = total_frame[(static_cast<size_t>(scroll_y) + y) * 256 + (static_cast<size_t>(scroll_x) + x)];
-			}
-			else {
-				frame_buffer[static_cast<size_t>(y) * frame_width + x] = 0;
 			}
 		}
 	}
@@ -1600,6 +1591,11 @@ void GPU::draw_frame() {
 			auto tile_id = memory->read(obj_addr++);
 			auto flags = memory->read(obj_addr++);
 			auto tile_addr = tile_top_addr + 16 * tile_id;
+
+			auto priority = flags >> 7 & 0x01;
+			auto x_flip   = flags >> 6 & 0x01;
+			auto y_flip   = flags >> 5 & 0x01;
+			auto palette  = flags >> 4 & 0x01;
 			
 			for (int k = 0; k < 8; k++) { //1 tile has 16 byte 8px * 8line 
 				uint8_t b1 = memory->read(tile_addr++);
@@ -1609,7 +1605,11 @@ void GPU::draw_frame() {
 					px += ((b1 >> (7 - l)) & 0x01) << 1;
 					auto x = left + l;
 					auto y = top + k;
-					if (px != 0) frame_buffer[static_cast<size_t>(y) * frame_width + x] = px;
+					if (px != 0 && !priority) 
+						frame_buffer[static_cast<size_t>(y) * frame_width + x] = px;
+					else if (priority && !frame_buffer[static_cast<size_t>(y) * frame_width + x]) {
+						frame_buffer[static_cast<size_t>(y) * frame_width + x] = px;
+					}
 				}
 			}
 		}
