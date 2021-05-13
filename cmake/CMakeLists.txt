@@ -10,6 +10,7 @@ include_directories( ${OPENGL_INCLUDE_DIRS}  ${GLUT_INCLUDE_DIRS} )
 
 add_executable(GBEmu 
 	../../GBEmulator/GBEmulator.cpp 
+	../../GBEmulator/Cartridge.cpp 
 	../../GBEmulator/Gameboy.cpp)
 
 target_link_libraries(GBEmu ${OPENGL_LIBRARIES} ${GLUT_LIBRARY} )
